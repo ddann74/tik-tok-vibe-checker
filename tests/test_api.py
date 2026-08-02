@@ -1,0 +1,100 @@
+"""PRD §6.1 API contract, §6.4 storage degradation, §7 CORS."""
+import importlib
+
+import pytest
+from fastapi.testclient import TestClient
+
+
+@pytest.fixture()
+def client(monkeypatch):
+    # PRD §6.4: with POSTGRES_URL / CHROMA_PATH unset, every endpoint must
+    # still work off in-memory/sample data.
+    monkeypatch.delenv("POSTGRES_URL", raising=False)
+    monkeypatch.delenv("CHROMA_PATH", raising=False)
+    from npl_engine import server as server_module
+
+    importlib.reload(server_module)
+    return TestClient(server_module.app)
+
+
+def test_health_returns_200_and_shape(client):
+    r = client.get("/health")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "healthy"
+    assert "timestamp" in body
+    assert "version" in body
+
+
+def test_root_returns_200(client):
+    r = client.get("/")
+    assert r.status_code == 200
+
+
+def test_analyze_match_success_shape_and_summary_matches_moments(client):
+    r = client.post("/analyze_match", params={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["match_id"]
+    assert isinstance(body["key_moments"], list)
+    assert body["key_moments_count"] == len(body["key_moments"])
+
+    goals = sum(1 for m in body["key_moments"] if m["event_type"] in ("goal", "own_goal", "penalty"))
+    cards = sum(1 for m in body["key_moments"] if m["event_type"] in ("yellow_card", "red_card"))
+    subs = sum(1 for m in body["key_moments"] if m["event_type"] == "substitution")
+    expected_summary = f"{goals} goals | {cards} cards | {subs} substitutions | {len(body['key_moments'])} total moments"
+    assert body["summary"] == expected_summary
+
+
+@pytest.mark.parametrize(
+    "bad_url",
+    ["", "not a url", "https://vimeo.com/12345678", "ftp://youtube.com/watch?v=dQw4w9WgXcQ"],
+)
+def test_analyze_match_rejects_invalid_url_with_4xx(client, bad_url):
+    r = client.post("/analyze_match", params={"url": bad_url})
+    assert 400 <= r.status_code < 500, f"expected 4xx for {bad_url!r}, got {r.status_code}"
+    assert r.json().get("detail")
+
+
+def test_search_key_moments_filters_by_query_against_seeded_sample_data(client):
+    r = client.get("/search_key_moments", params={"q": "goal"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["count"] == len(body["results"])
+    assert body["count"] > 0
+    for result in body["results"]:
+        haystack = f"{result['event_type']} {result['description']}".lower()
+        assert "goal" in haystack
+
+
+def test_search_key_moments_irrelevant_query_returns_no_false_matches(client):
+    r = client.get("/search_key_moments", params={"q": "xylophone"})
+    assert r.status_code == 200
+    assert r.json()["count"] == 0
+
+
+def test_every_endpoint_works_without_postgres_or_chroma_configured(client):
+    """PRD §6.4 integration check: hit every endpoint with both backends unset."""
+    assert client.get("/health").status_code == 200
+    assert client.get("/").status_code == 200
+    analyze = client.post("/analyze_match", params={"url": "https://youtu.be/dQw4w9WgXcQ"})
+    assert analyze.status_code == 200
+    assert analyze.json()["storage_backend"]["postgres_active"] is False
+    assert analyze.json()["storage_backend"]["chroma_active"] is False
+    assert client.get("/search_key_moments", params={"q": "card"}).status_code == 200
+
+
+def test_cors_rejects_non_localhost_origin(client):
+    r = client.get("/health", headers={"Origin": "http://evil-example.com"})
+    assert "access-control-allow-origin" not in {k.lower() for k in r.headers.keys()}
+
+
+def test_cors_allows_localhost_origin(client):
+    r = client.get(
+        "/health",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert r.headers.get("access-control-allow-origin") == "http://localhost:3000"
