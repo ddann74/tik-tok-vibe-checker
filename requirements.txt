@@ -4,3 +4,4 @@ pydantic
 youtube-transcript-api
 httpx
 pytest
+chromadb

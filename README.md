@@ -24,9 +24,16 @@ explicitly marked as not yet done.
   has no captions or is unreachable, the API falls back to a labeled sample
   transcript rather than erroring — response includes `"source":
   "live"` or `"source": "sample_fallback"` so callers always know which.
-- **Storage**: in-memory only. `POSTGRES_URL` / `CHROMA_PATH` are read and
-  reported back (`storage_backend` field) but neither backend is wired up —
-  search is keyword matching, not semantic. See PRD §8 open risk 2.
+- **Storage**: in-memory only. Postgres is not wired up (`POSTGRES_URL` is
+  read and reported back, never used — PRD §8 open risk 2). Chroma *is*
+  real: its default local embedding model is reachable in this environment
+  and semantic search runs for real. Keyword search is the primary path
+  (exact, deterministic); when it finds nothing, natural-language queries
+  fall back to semantic search, filtered to a conservative similarity
+  threshold (see `npl_engine/storage.py`'s `search()` docstring for why a
+  relative top-k cutoff was rejected in favor of an absolute one). With this
+  small model and small corpus, plenty of legitimate-sounding queries still
+  come back empty rather than noisy — that's intentional, not a bug.
 - **Frontend**: `static/index.html`, single page, no build step, no CDN
   dependencies. Verified in a real browser (Playwright): sample data loads
   with no backend running, a clear "server not running" banner shows
@@ -106,7 +113,8 @@ been checked against real commentary, only self-authored fixtures.
 
 - No AI-powered detection tier (needs a Gemini key + the actual YouTube
   Vision MCP server, unavailable here).
-- No real PostgreSQL/Chroma backend — in-memory + keyword search only.
+- No real PostgreSQL backend — in-memory only, `POSTGRES_URL` is read but
+  unused. Chroma semantic search *is* real now (see above), not a gap.
 - Detection F1 targets in `tests/test_detection.py` are measured against
   fixtures written alongside the patterns, not an independently labeled,
   held-out set — real-world accuracy on unseen broadcasts is unverified.
