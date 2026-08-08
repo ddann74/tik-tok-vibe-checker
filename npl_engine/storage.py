@@ -1,26 +1,29 @@
-"""In-memory match/key-moment storage, with keyword search as the primary
-path and real semantic search (Chroma) layered on top when available.
+"""In-memory match/key-moment storage (the runtime cache used for search),
+with real optional persistence (Postgres) and real optional semantic search
+(Chroma) layered on top when available.
 
-The source report claimed optional PostgreSQL (structured facts) and Chroma
-(semantic vector search) backends. Postgres is still not wired up here —
-doing so honestly would require a live database instance this environment
-doesn't have. Chroma *is* now real: its default local embedding model is
-reachable from this sandbox (confirmed by actually downloading it and
-running a query), so semantic search runs for real, not simulated. It's
-layered as a fallback rather than the primary path: keyword search stays
-exact/deterministic (existing tests depend on literal substring matches),
-and semantic search kicks in for natural-language queries that keyword
-search comes up empty on - which is the actual use case in PRD §3
-("find all red cards across the last 10 APIA matches"). If chromadb or its
-embedding model isn't available at runtime, this degrades to keyword-only
-automatically; `backend_mode()` reports which actually happened, not which
-was merely requested.
+Both backends follow the same rule: never claim active unless a live
+connection/model actually succeeded this run. Postgres, when POSTGRES_URL
+is set and connects, persists every match + its key moments and reloads them
+on startup - proven by tests/test_pg_storage.py, which restarts a fresh
+MatchStore against the same database and checks the data survived a
+simulated restart. Chroma's default local embedding model is reachable from
+this sandbox (confirmed by actually downloading it and running a query), so
+semantic search runs for real too. It's layered as a fallback rather than
+the primary path: keyword search stays exact/deterministic (existing tests
+depend on literal substring matches), and semantic search kicks in for
+natural-language queries that keyword search comes up empty on - the actual
+use case in PRD §3 ("find all red cards across the last 10 APIA matches").
+If either dependency isn't available at runtime, this degrades to
+in-memory/keyword-only automatically; `backend_mode()` reports which
+actually happened, not which was merely requested.
 """
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
 
+from . import pg_storage
 from .detection import KeyMoment
 
 _STOPWORDS = {
@@ -63,13 +66,26 @@ class MatchStore:
     def __init__(self) -> None:
         self._matches: dict[str, StoredMatch] = {}
         self._chroma_collection = _init_chroma_collection()
+        self._pg_conn = pg_storage.connect()
+        if self._pg_conn is not None:
+            for match in pg_storage.load_all_matches(self._pg_conn):
+                self._matches[match.match_id] = match
 
     @property
     def semantic_search_active(self) -> bool:
         return self._chroma_collection is not None
 
+    @property
+    def postgres_active(self) -> bool:
+        return self._pg_conn is not None
+
     def put(self, match: StoredMatch) -> None:
         self._matches[match.match_id] = match
+        if self._pg_conn is not None:
+            try:
+                pg_storage.upsert_match(self._pg_conn, match)
+            except Exception:  # nosec B110 - persistence is a bonus, must not break analyze_match
+                pass
         if self._chroma_collection is not None and match.key_moments:
             try:
                 self._chroma_collection.upsert(
@@ -167,12 +183,20 @@ class MatchStore:
 def backend_mode() -> dict:
     """Reports what storage backends were *requested* via env vars vs what's
     actually active. Never claims a backend is live unless it truly is."""
+    backends = []
+    if store.postgres_active:
+        backends.append("postgres")
+    backends.append("in_memory")
+    if store.semantic_search_active:
+        backends.append("chroma_semantic_fallback")
+    else:
+        backends.append("keyword_search")
     return {
         "postgres_requested": bool(os.environ.get("POSTGRES_URL")),
-        "postgres_active": False,
+        "postgres_active": store.postgres_active,
         "chroma_requested": bool(os.environ.get("CHROMA_PATH")),
         "chroma_active": store.semantic_search_active,
-        "active_backend": "keyword_search+chroma_semantic_fallback" if store.semantic_search_active else "keyword_search_only",
+        "active_backend": "+".join(backends),
     }
 
 

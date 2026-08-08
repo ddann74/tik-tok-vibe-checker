@@ -41,6 +41,12 @@ def test_keyword_search_wins_over_semantic_when_both_could_apply():
     assert all(r["match_type"] == "keyword" for r in results)
 
 
-def test_search_degrades_to_empty_not_error_with_no_matches_stored():
+def test_search_degrades_to_empty_not_error_with_no_matches_stored(monkeypatch):
+    # Explicitly unset POSTGRES_URL: a *genuinely* empty, in-memory-only
+    # store returns []. This is not the same claim as "a fresh MatchStore()
+    # is always empty" - with real Postgres persistence active (see
+    # test_pg_storage.py), a fresh instance legitimately reloads whatever
+    # was already saved, which is the entire point of persistence.
+    monkeypatch.delenv("POSTGRES_URL", raising=False)
     store = MatchStore()
     assert store.search("goal") == []

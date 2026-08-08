@@ -46,10 +46,17 @@ between "tests pass" and "works in general."
    product call: is regex-only accuracy acceptable, or is a Gemini-backed
    tier worth the API cost and a required key? PRD §8 in the original
    report flagged this as unresolved; it still is.
-4. **Postgres backend** — not blocked, not started. `POSTGRES_URL` is read
-   and reported but never connected to. Needs a real database + a decision
-   that persistence is actually needed (vs. in-memory being sufficient for
-   the use case).
+4. ~~**Postgres backend**~~ **CLOSED.** Real persistence now wired in
+   (`npl_engine/pg_storage.py`): matches + key moments are written on every
+   `put()` and reloaded on startup. Proven by
+   `tests/test_pg_storage.py::test_data_survives_a_simulated_restart`,
+   which restarts a fresh `MatchStore` against the same database and checks
+   the data survived — run against a real local PostgreSQL 16 instance, and
+   CI now spins up a `postgres:16` service container so this stays
+   continuously verified, not just verified once locally. Still unverified
+   against anything other than local/CI Postgres (managed production
+   instances - connection pooling, network latency, TLS - may behave
+   differently; not assumed to be identical).
 5. **Player/team extraction quality** — known-weak. The capitalized-phrase
    heuristic has no real NER behind it and provably misfires (confirmed:
    "Deflects", "That's", team names bleeding into the player field). Fixed

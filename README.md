@@ -24,10 +24,16 @@ explicitly marked as not yet done.
   has no captions or is unreachable, the API falls back to a labeled sample
   transcript rather than erroring — response includes `"source":
   "live"` or `"source": "sample_fallback"` so callers always know which.
-- **Storage**: in-memory only. Postgres is not wired up (`POSTGRES_URL` is
-  read and reported back, never used — PRD §8 open risk 2). Chroma *is*
-  real: its default local embedding model is reachable in this environment
-  and semantic search runs for real. Keyword search is the primary path
+- **Storage**: in-memory cache backed by real, optional persistence. Set
+  `POSTGRES_URL` and matches/key moments are actually written and reloaded
+  on restart (`npl_engine/pg_storage.py`) — proven by
+  `tests/test_pg_storage.py`, which restarts a fresh store against the same
+  database and checks the data survived, run against a real local
+  PostgreSQL 16 instance and continuously verified in CI via a
+  `postgres:16` service container. Unset, it's in-memory only, same as
+  before. Chroma *is* also real: its default local embedding model is
+  reachable in this environment and semantic search runs for real. Keyword
+  search is the primary path
   (exact, deterministic); when it finds nothing, natural-language queries
   fall back to semantic search, filtered to a conservative similarity
   threshold (see `npl_engine/storage.py`'s `search()` docstring for why a
@@ -58,6 +64,9 @@ PYTHONPATH=. python scripts/compute_detection_metrics.py
 
 # Full test suite (detection F1 thresholds, API contract, storage degradation, CORS)
 PYTHONPATH=. pytest tests/ -v
+
+# Same, plus real Postgres persistence tests (skipped above without this)
+POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/npl_engine_test PYTHONPATH=. pytest tests/ -v
 
 # Security scan
 bandit -r npl_engine
@@ -113,8 +122,10 @@ been checked against real commentary, only self-authored fixtures.
 
 - No AI-powered detection tier (needs a Gemini key + the actual YouTube
   Vision MCP server, unavailable here).
-- No real PostgreSQL backend — in-memory only, `POSTGRES_URL` is read but
-  unused. Chroma semantic search *is* real now (see above), not a gap.
+- Postgres and Chroma semantic search are both real now (see above), not
+  gaps. Postgres is only verified against local/CI PostgreSQL 16 — a
+  managed production instance (connection pooling, network latency, TLS)
+  may behave differently; not assumed identical.
 - Detection F1 targets in `tests/test_detection.py` are measured against
   fixtures written alongside the patterns, not an independently labeled,
   held-out set — real-world accuracy on unseen broadcasts is unverified.

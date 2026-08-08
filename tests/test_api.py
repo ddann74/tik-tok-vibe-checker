@@ -11,6 +11,16 @@ def client(monkeypatch):
     # still work off in-memory/sample data.
     monkeypatch.delenv("POSTGRES_URL", raising=False)
     monkeypatch.delenv("CHROMA_PATH", raising=False)
+    from npl_engine import storage as storage_module
+
+    # `store` is a module-level singleton built once at import time, so
+    # merely reloading server_module below re-binds names but does NOT
+    # re-run MatchStore.__init__ - without rebuilding it here, this
+    # fixture's env-var patching would be silently ignored and
+    # postgres_active/chroma_active would keep reflecting whatever was
+    # true the first time storage.py was imported in this test session.
+    monkeypatch.setattr(storage_module, "store", storage_module.MatchStore())
+
     from npl_engine import server as server_module
 
     importlib.reload(server_module)
