@@ -77,6 +77,22 @@ on real phrasing gaps this run exposed (e.g. "into the book" beyond just
 treat it as a sanity check that closed an obvious gap, not proof the F1
 targets in §9 hold in general.
 
+A second real match (St. George City vs Rockdale Illawarra, also not checked
+in here) was run the same way and caught two real bugs the first match
+happened not to exercise:
+
+- **False positive**: the goal pattern matched the bare word "score" (e.g.
+  "the final score, St. George City 1, Rockdale nil"), because `scores?`
+  also matches singular "score". Fixed to require "scores"/"scored".
+- **Recall miss**: a real goal call ("...there's the opening goal of the
+  match... puts the home side in front") used none of the existing trigger
+  verbs. Added a pattern for "opening/equalising/winning/late goal" phrasing.
+
+Re-run after the fix: goal 1/1 (was 0/1, plus the false positive is gone),
+yellow cards 4/4, substitutions 2/4. No penalty, red card, or own goal
+occurred in this match either — those three event types have still never
+been checked against real commentary, only self-authored fixtures.
+
 ## API
 
 | Endpoint | Method | Notes |

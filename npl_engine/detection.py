@@ -30,11 +30,14 @@ _PRIORITY = ("own_goal", "red_card", "penalty", "yellow_card", "substitution", "
 PATTERNS: dict[str, list[re.Pattern]] = {
     "goal": [
         re.compile(
-            r"(?i)\b(scores?|scored|headers? (?:it |them )?(?:in|home)|volleys? (?:it |them )?in"
+            # "scores?" deliberately excludes bare "score" (matches "scores"/"scored"
+            # only) - "the final score" / "the score is 1-0" are not goal events.
+            r"(?i)\b(scores|scored|headers? (?:it |them )?(?:in|home)|volleys? (?:it |them )?in"
             r"|finishes? (?:it |past)|strikes? (?:it |past)|(?:back of|into) the net"
             r"|past the (?:keeper|goalkeeper)|beats? the (?:keeper|goalkeeper))\b"
         ),
         re.compile(r"(?i)\b(equaliser|equalizer|leveller)\b"),
+        re.compile(r"(?i)\b(opening|equalising|equalizing|winning|late|second|third|fourth) goal\b"),
     ],
     "yellow_card": [
         re.compile(
