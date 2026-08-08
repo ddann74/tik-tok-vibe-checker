@@ -124,6 +124,7 @@
     <div class="row">
       <select id="week-select"><option value="">Browse by match week…</option></select>
       <select id="game-select" disabled><option value="">Select a week first</option></select>
+      <button id="refresh-weeks-btn" class="secondary">Refresh Match Weeks</button>
     </div>
     <div id="week-note" class="meta"></div>
     <div class="row">
@@ -275,7 +276,7 @@
       const data = await r.json();
       weeksData = data.weeks || [];
       if (weeksData.length === 0) {
-        weekNote.textContent = "No match weeks cached yet - run scripts/refresh_playlist_cache.py.";
+        weekNote.textContent = 'No match weeks cached yet - click "Refresh Match Weeks" (needs this server to have internet access).';
         return;
       }
       weekNote.textContent = data.note || "";
@@ -308,6 +309,26 @@
     if (weekIdx === "" || gameIdx === "") return;
     const game = weeksData[Number(weekIdx)].games[Number(gameIdx)];
     urlInput.value = game.video_url;
+  });
+
+  document.getElementById("refresh-weeks-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("refresh-weeks-btn");
+    btn.disabled = true;
+    weekNote.textContent = "Refreshing from YouTube… this can take a minute for a large playlist.";
+    try {
+      const r = await fetch("/match_weeks/refresh", { method: "POST" });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        weekNote.textContent = "Refresh failed: " + (data.detail || r.statusText);
+      } else {
+        weekNote.textContent = `Refreshed: ${data.games} games across ${data.weeks} estimated weeks.`;
+        await loadMatchWeeks();
+      }
+    } catch (e) {
+      weekNote.textContent = "Refresh failed: could not reach the server.";
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   checkHealth();
