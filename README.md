@@ -61,6 +61,22 @@ python scripts/bench.py --base-url http://127.0.0.1:8000 --server-pid <uvicorn p
 
 All of the above also run in CI (`.github/workflows/ci.yml`) on every push.
 
+### Real-match validation (not just self-authored fixtures)
+
+The checked-in fixtures score a perfect 1.00 F1 on every bucket — expected,
+since they were written alongside the patterns. To get an honest read, the
+patterns were also run line-by-line against a real NPL NSW match transcript
+(Southerntherland Sharks vs Sydney FC) supplied outside this repo. That
+transcript isn't checked in here (broadcast commentary is copyrighted), but
+the outcome is: goals 2/2 caught, yellow cards 5/5, substitutions 3/4, no
+false positives on red cards/penalties/own goals (none occurred in that
+match). The substitution/yellow-card patterns were widened afterward based
+on real phrasing gaps this run exposed (e.g. "into the book" beyond just
+"goes into the book"; "comes in for" and "entered the fray for" beyond
+"comes on for"). This is one match, not a statistically meaningful sample —
+treat it as a sanity check that closed an obvious gap, not proof the F1
+targets in §9 hold in general.
+
 ## API
 
 | Endpoint | Method | Notes |

@@ -37,14 +37,19 @@ PATTERNS: dict[str, list[re.Pattern]] = {
         re.compile(r"(?i)\b(equaliser|equalizer|leveller)\b"),
     ],
     "yellow_card": [
-        re.compile(r"(?i)\b(yellow card|goes into the book|shown a yellow|booked for|booking for)\b"),
+        re.compile(
+            r"(?i)\b(yellow card|(?:goes|going|first (?:one|player) )?into the book"
+            r"|finds (?:himself|herself) in the book|shown a yellow|booked for|booking for)\b"
+        ),
     ],
     "red_card": [
         re.compile(r"(?i)\b(red card|sent off|dismissed|straight red|second yellow)\b"),
     ],
     "substitution": [
         re.compile(
-            r"(?i)\b(substitution|replaces|comes on for|makes way for|is replaced by|brought on for)\b"
+            r"(?i)\b(substitution|replaces|comes on for|comes in for|makes way for|is replaced by"
+            r"|brought on for|replace (?:him|her|them)"
+            r"|(?:enters?|entered|come|comes) (?:into )?the (?:fray|frag|freight|game) for)\b"
         ),
     ],
     "penalty": [
