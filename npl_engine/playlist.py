@@ -130,7 +130,17 @@ def fetch_playlist_entries(playlist_url: str = DEFAULT_PLAYLIST_URL) -> list[dic
     except ImportError:
         return []
     try:
-        with yt_dlp.YoutubeDL({"quiet": True, "extract_flat": "in_playlist", "skip_download": True}) as ydl:
+        # extract_flat is deliberately NOT set here (previously it was
+        # mistakenly set to "in_playlist", which returns fast but never
+        # includes upload_date per video - confirmed by a live run that
+        # fetched 217 real entries and grouped 0 of them, because every
+        # single one came back dateless and group_into_match_weeks()
+        # correctly drops undated entries rather than guessing). Full
+        # per-video extraction is slow for a large playlist (real-world:
+        # several minutes for ~200 videos) - that tradeoff is accepted
+        # here because this is a manual/occasional refresh, not a
+        # per-request fetch.
+        with yt_dlp.YoutubeDL({"quiet": True, "skip_download": True}) as ydl:
             info = ydl.extract_info(playlist_url, download=False)
     except Exception:
         return []
