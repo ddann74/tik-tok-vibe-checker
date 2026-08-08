@@ -34,7 +34,7 @@ PATTERNS: dict[str, list[re.Pattern]] = {
             # only) - "the final score" / "the score is 1-0" are not goal events.
             r"(?i)\b(scores|scored|headers? (?:it |them )?(?:in|home)|volleys? (?:it |them )?in"
             r"|finishes? (?:it |past)|strikes? (?:it |past)|(?:back of|into) the net"
-            r"|past the (?:keeper|goalkeeper)|beats? the (?:keeper|goalkeeper))\b"
+            r"|past the (?:keeper|goalkeeper)|beats? the (?:keeper|goalkeeper)|buried it|buries it)\b"
         ),
         re.compile(r"(?i)\b(equaliser|equalizer|leveller)\b"),
         re.compile(r"(?i)\b(opening|equalising|equalizing|winning|late|second|third|fourth) goal\b"),
@@ -51,10 +51,10 @@ PATTERNS: dict[str, list[re.Pattern]] = {
     ],
     "substitution": [
         re.compile(
-            r"(?i)\b(substitution|replaces|comes on for|comes in for|makes way for|is replaced by"
+            r"(?i)\b(substitution|replaces|comes on for|comes in for|makes way for|(?:is )?replaced by"
             r"|brought on for|replace (?:him|her|them)"
             r"|(?:enters?|entered|come|comes) (?:into )?the (?:fray|frag|freight|game) for"
-            r"|coming on|coming off|set to come on)\b"
+            r"|coming on|coming off|set to come on|comes off|comes on)\b"
         ),
     ],
     "penalty": [

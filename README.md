@@ -135,6 +135,34 @@ gaps:
 Re-run after the fix: substitutions 5/5 (was 0/5), goals 2/3 (was 1/3 -
 the recap-only own-goal miss stands, undecided whether to chase it).
 
+A fourth real match (Wollongong Wolves vs SD Raiders, also not checked in
+here) had a real red card - the first exercise of that pattern - plus more
+goal/substitution gaps:
+
+- Red card: caught cleanly, no pattern change needed.
+- Goal: "buried it" (a common finishing verb - "he's buried it") was
+  missed. Added. Two goal calls remain missed and unfixed as too risky to
+  generalize: a noun-phrase call ("...with the finish", no verb) and
+  "clipped in goal" (a fairly common but ambiguous construction - "in
+  goal" also appears in unrelated phrases like "the keeper collects it in
+  goal").
+- Substitution: simple-present "comes off"/"comes on" (as opposed to the
+  gerund "coming off"/"coming on" already covered) and bare "replaced by"
+  without a leading "is" were both missed. Added. One substitution call
+  ("James Letter... going to have to take his leave... Thomas Santa Rossa
+  who's on") remains missed and unfixed - too idiosyncratic to generalize
+  from a single example without risking false positives on unrelated
+  "who's on" phrasing.
+- Penalty: two hand-ball shouts in this match, neither resulted in an
+  actual penalty being awarded, and neither triggered a false positive -
+  a genuine, if narrow, validation that the conservative penalty pattern
+  behaves correctly on real "almost but not quite" commentary.
+
+Running tally across all four validated matches: goals 8/11, yellow cards
+18/18, substitutions 13/17, red card 1/1, own goal 1/1 (recap only).
+**Penalty is now the only event type with zero real-match exercise** -
+none of the four matches validated so far had one actually awarded.
+
 ## API
 
 | Endpoint | Method | Notes |

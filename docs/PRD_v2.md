@@ -20,35 +20,44 @@ reason it isn't closed. Nothing here is aspirational prose.
 
 ## 2. Validated against real data (not just self-authored fixtures)
 
-Three real NPL NSW match transcripts (user-supplied, not checked into this
+Four real NPL NSW match transcripts (user-supplied, not checked into this
 repo — copyrighted broadcast commentary) were run through the detection
 engine line-by-line. This found and fixed:
 
 - A false positive (bare "score" matching the goal pattern on phrases like
   "the final score").
-- Recall misses on goal calls: "opening goal... puts them in front" and
-  bare "...and it's a goal" both matched no existing trigger.
-- Substitution-phrasing gaps: "comes in for", "entered the fray for", and
-  (the biggest one) "[player] coming off... [player] on" / "set to come on
-  in place of [player]" - the third match had 0/5 substitutions caught
-  before this was added.
+- Recall misses on goal calls: "opening goal... puts them in front", bare
+  "...and it's a goal", and "buried it" (a common finishing verb) all
+  matched no existing trigger at various points.
+- Substitution-phrasing gaps: "comes in for", "entered the fray for",
+  "[player] coming off... [player] on" / "set to come on in place of
+  [player]" (the third match had 0/5 substitutions caught before this was
+  added), and simple-present "comes off"/"comes on" plus bare "replaced
+  by" without a leading "is" (the fourth match's biggest miss).
+- The fourth match provided the first real red card - caught cleanly, no
+  fix needed for that pattern.
 - An own goal was caught, but only via a half-time recap sentence that
   literally said "own goal" - the live call used generic deflection
   language and was missed. Left unfixed: "a deflection off a player" is
   too generic a trigger to add without risking false positives on ordinary
   deflected shots.
 
-Current real-match tally across all three matches: goals 5/6, yellow cards
-10/10, substitutions 10/13, own goal 1/1 (recap only, live call missed).
-**Zero real-match exercise for penalty or red card** — none of the three
-validated matches had either. That's the largest remaining gap between
-"tests pass" and "works in general."
+Current real-match tally across all four matches: goals 8/11, yellow cards
+18/18, substitutions 13/17, red card 1/1, own goal 1/1 (recap only, live
+call missed). **Zero real-match exercise for penalty** — none of the four
+validated matches had one (two had a hand-ball shout that correctly did
+NOT trigger a false positive, since no penalty was actually awarded either
+time). Penalty is now the only event type with no real-world exercise at
+all - the last item in this gap.
 
 ## 3. Open items, ranked, with why they're open
 
-1. **Penalty/red-card real-match validation** — own-goal is now partially
-   closed (see §2), but blocked on getting a transcript with a penalty or
-   red card. Not blocked on anything technical.
+1. ~~**Penalty/red-card real-match validation**~~ **Red card CLOSED** (4th
+   match, caught cleanly, no pattern change needed). **Penalty still open**
+   — blocked on getting a transcript with an actual penalty awarded (not
+   just a shout that was waved away, which two of the four matches already
+   had and correctly did not false-positive). Not blocked on anything
+   technical.
 2. **Live YouTube fetch, end-to-end** — blocked on this sandbox's egress
    policy (confirmed via live 403 at the proxy, not assumed). Needs running
    `npl_engine/transcript.py` somewhere with real internet.
