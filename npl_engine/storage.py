@@ -25,6 +25,7 @@ from dataclasses import dataclass
 
 from . import pg_storage
 from .detection import KeyMoment
+from .transcript import InvalidYouTubeURL, extract_video_id, timestamped_video_url
 
 _STOPWORDS = {
     "a", "an", "the", "is", "was", "were", "are", "be", "been", "who", "what",
@@ -45,6 +46,14 @@ class StoredMatch:
 
 def _moment_document(moment: KeyMoment) -> str:
     return f"{moment.event_type.replace('_', ' ')}: {moment.description}"
+
+
+def _video_url_for(match: "StoredMatch", moment: KeyMoment) -> str | None:
+    try:
+        video_id = extract_video_id(match.youtube_url)
+    except InvalidYouTubeURL:
+        return None
+    return timestamped_video_url(video_id, moment.start_seconds)
 
 
 def _init_chroma_collection():
@@ -166,6 +175,7 @@ class MatchStore:
             "team": moment.team,
             "score": score,
             "match_type": match_type,
+            "video_url": _video_url_for(match, moment),
         }
 
     def search(self, query: str, top_k: int = 10) -> list[dict]:

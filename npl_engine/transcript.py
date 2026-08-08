@@ -44,6 +44,13 @@ def extract_video_id(url: str) -> str:
     return candidate
 
 
+def timestamped_video_url(video_id: str, start_seconds: float) -> str:
+    """Canonical youtube.com/watch URL that jumps to a specific moment,
+    regardless of what URL format the video was originally requested with
+    (youtu.be, /embed/, /shorts/ all normalize to this)."""
+    return f"https://www.youtube.com/watch?v={video_id}&t={max(0, int(start_seconds))}s"
+
+
 # Deterministic sample transcript used for "Load Sample" and as a fallback
 # when live transcript retrieval fails. Mirrors the example in the source
 # report (APIA Leichhardt vs Sydney United) but is explicitly marked as

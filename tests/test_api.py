@@ -41,6 +41,23 @@ def test_root_returns_200(client):
     assert r.status_code == 200
 
 
+def test_analyze_match_key_moments_link_to_the_right_timestamp(client):
+    r = client.post("/analyze_match", params={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"})
+    body = r.json()
+    assert body["key_moments"], "expected at least one key moment for this to be a meaningful test"
+    for moment in body["key_moments"]:
+        assert moment["video_url"].startswith("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=")
+        assert moment["video_url"].endswith("s")
+
+
+def test_search_key_moments_results_include_video_url(client):
+    r = client.get("/search_key_moments", params={"q": "goal"})
+    body = r.json()
+    assert body["results"], "expected at least one result for this to be a meaningful test"
+    for result in body["results"]:
+        assert result["video_url"] is None or result["video_url"].startswith("https://www.youtube.com/watch?v=")
+
+
 def test_analyze_match_success_shape_and_summary_matches_moments(client):
     r = client.post("/analyze_match", params={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"})
     assert r.status_code == 200

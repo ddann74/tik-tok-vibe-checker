@@ -54,6 +54,11 @@ def test_data_survives_a_simulated_restart():
         assert len(recovered.key_moments) == len(moments)
         assert recovered.key_moments[0].event_type == moments[0].event_type
         assert recovered.key_moments[0].description == moments[0].description
+        # start_seconds must round-trip too, or video_url links (built from
+        # it in storage.py's _format_result) would silently point to 0:00
+        # for every moment reloaded after a restart.
+        assert recovered.key_moments[0].start_seconds == moments[0].start_seconds
+        assert recovered.key_moments[0].start_seconds > 0
     finally:
         _cleanup(match_id)
 

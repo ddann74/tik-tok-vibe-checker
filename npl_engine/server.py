@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from . import __version__
 from .detection import KeyMoment, detect_key_moments, summarize
 from .storage import StoredMatch, backend_mode, store
-from .transcript import InvalidYouTubeURL, extract_video_id, fetch_transcript
+from .transcript import InvalidYouTubeURL, extract_video_id, fetch_transcript, timestamped_video_url
 
 app = FastAPI(title="NPL NSW Intelligence Engine", version=__version__)
 
@@ -30,7 +30,7 @@ app.add_middleware(
 )
 
 
-def _key_moment_to_dict(m: KeyMoment) -> dict:
+def _key_moment_to_dict(m: KeyMoment, video_id: str) -> dict:
     return {
         "timestamp": m.timestamp,
         "event_type": m.event_type,
@@ -38,6 +38,7 @@ def _key_moment_to_dict(m: KeyMoment) -> dict:
         "confidence": m.confidence,
         "player": m.player,
         "team": m.team,
+        "video_url": timestamped_video_url(video_id, m.start_seconds),
     }
 
 
@@ -51,7 +52,7 @@ def _seed_sample_match() -> None:
     store.put(
         StoredMatch(
             match_id=match_id,
-            youtube_url="https://www.youtube.com/watch?v=sample0001",
+            youtube_url="https://www.youtube.com/watch?v=sample00001",
             title="NPL NSW Sample Match (APIA Leichhardt vs Sydney United)",
             key_moments=moments,
             source="sample",
@@ -111,7 +112,7 @@ def analyze_match(url: str = Query(..., description="YouTube match video URL")):
         "title": title,
         "youtube_url": url,
         "key_moments_count": len(key_moments),
-        "key_moments": [_key_moment_to_dict(m) for m in key_moments],
+        "key_moments": [_key_moment_to_dict(m, video_id) for m in key_moments],
         "summary": summarize(key_moments),
         "transcript_segments": len(segments),
         "source": source,

@@ -82,7 +82,8 @@
     align-items: baseline;
     word-break: break-word;
   }
-  .moment .ts { color: var(--accent); font-weight: 600; min-width: 3.5em; }
+  .moment .ts { color: var(--accent); font-weight: 600; min-width: 3.5em; text-decoration: none; }
+  .moment a.ts:hover { text-decoration: underline; }
   .badge {
     font-size: 0.72rem;
     text-transform: uppercase;
@@ -145,14 +146,15 @@
   const urlInput = document.getElementById("video-url");
   const qInput = document.getElementById("search-q");
 
+  const SAMPLE_VIDEO_ID = "sample00001";
   const SAMPLE_MOMENTS = [
-    { timestamp: "12:34", event_type: "goal", description: "Payne fires it into the bottom corner!", confidence: 0.82, player: "J. Payne", team: null },
-    { timestamp: "21:30", event_type: "yellow_card", description: "That's a yellow card shown for the late challenge.", confidence: 0.7, player: null, team: null },
-    { timestamp: "31:15", event_type: "penalty", description: "Penalty awarded after the trip inside the box.", confidence: 0.75, player: null, team: null },
-    { timestamp: "40:30", event_type: "substitution", description: "Substitution for APIA, Nguyen comes on for the tiring Payne.", confidence: 0.7, player: "Nguyen", team: null },
-    { timestamp: "47:45", event_type: "red_card", description: "Careless challenge there, and that's a straight red card, he's sent off!", confidence: 0.8, player: null, team: null },
-    { timestamp: "55:20", event_type: "own_goal", description: "Deflects past his own keeper, an unfortunate own goal.", confidence: 0.65, player: null, team: null },
-  ];
+    { timestamp: "12:34", start_seconds: 754, event_type: "goal", description: "Payne fires it into the bottom corner!", confidence: 0.82, player: "J. Payne", team: null },
+    { timestamp: "21:30", start_seconds: 1290, event_type: "yellow_card", description: "That's a yellow card shown for the late challenge.", confidence: 0.7, player: null, team: null },
+    { timestamp: "31:15", start_seconds: 1875, event_type: "penalty", description: "Penalty awarded after the trip inside the box.", confidence: 0.75, player: null, team: null },
+    { timestamp: "40:30", start_seconds: 2430, event_type: "substitution", description: "Substitution for APIA, Nguyen comes on for the tiring Payne.", confidence: 0.7, player: "Nguyen", team: null },
+    { timestamp: "47:45", start_seconds: 2865, event_type: "red_card", description: "Careless challenge there, and that's a straight red card, he's sent off!", confidence: 0.8, player: null, team: null },
+    { timestamp: "55:20", start_seconds: 3320, event_type: "own_goal", description: "Deflects past his own keeper, an unfortunate own goal.", confidence: 0.65, player: null, team: null },
+  ].map((m) => ({ ...m, video_url: `https://www.youtube.com/watch?v=${SAMPLE_VIDEO_ID}&t=${m.start_seconds}s` }));
 
   function setBanner(show) {
     banner.classList.toggle("visible", show);
@@ -170,7 +172,9 @@
     results.innerHTML = moments
       .map((m) => `
         <div class="moment">
-          <span class="ts">${escapeHtml(m.timestamp)}</span>
+          ${m.video_url
+            ? `<a class="ts" href="${escapeHtml(m.video_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(m.timestamp)}</a>`
+            : `<span class="ts">${escapeHtml(m.timestamp)}</span>`}
           <span class="badge ${escapeHtml(m.event_type)}">${escapeHtml(m.event_type.replace("_", " "))}</span>
           <span class="meta">confidence ${(m.confidence * 100).toFixed(0)}%</span>
           ${m.player ? `<span class="meta">player: ${escapeHtml(m.player)}</span>` : ""}

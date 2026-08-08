@@ -33,8 +33,13 @@ CREATE TABLE IF NOT EXISTS key_moments (
     confidence REAL NOT NULL,
     player TEXT,
     team TEXT,
+    start_seconds REAL NOT NULL DEFAULT 0,
     UNIQUE (match_id, idx)
 );
+-- ADD COLUMN IF NOT EXISTS so a database created before this field existed
+-- (e.g. by an earlier version of this app) picks it up on next connect,
+-- rather than silently keeping stale schema.
+ALTER TABLE key_moments ADD COLUMN IF NOT EXISTS start_seconds REAL NOT NULL DEFAULT 0;
 """
 
 
@@ -76,10 +81,13 @@ def upsert_match(conn, match) -> None:
             cur.execute(
                 """
                 INSERT INTO key_moments
-                    (match_id, idx, timestamp, event_type, description, confidence, player, team)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    (match_id, idx, timestamp, event_type, description, confidence, player, team, start_seconds)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (match.match_id, idx, m.timestamp, m.event_type, m.description, m.confidence, m.player, m.team),
+                (
+                    match.match_id, idx, m.timestamp, m.event_type, m.description,
+                    m.confidence, m.player, m.team, m.start_seconds,
+                ),
             )
 
 
@@ -93,14 +101,17 @@ def load_all_matches(conn) -> list:
     for match_id, youtube_url, title, source, transcript_segments in rows:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT timestamp, event_type, description, confidence, player, team "
+                "SELECT timestamp, event_type, description, confidence, player, team, start_seconds "
                 "FROM key_moments WHERE match_id = %s ORDER BY idx",
                 (match_id,),
             )
             moment_rows = cur.fetchall()
         moments = [
-            KeyMoment(timestamp=ts, event_type=et, description=desc, confidence=conf, player=player, team=team)
-            for ts, et, desc, conf, player, team in moment_rows
+            KeyMoment(
+                timestamp=ts, event_type=et, description=desc, confidence=conf,
+                player=player, team=team, start_seconds=start_seconds,
+            )
+            for ts, et, desc, conf, player, team, start_seconds in moment_rows
         ]
         matches.append(StoredMatch(match_id, youtube_url, title, moments, source, transcript_segments))
     return matches
