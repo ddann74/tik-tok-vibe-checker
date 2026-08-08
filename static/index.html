@@ -46,7 +46,7 @@
     margin-bottom: 14px;
   }
   .row { display: flex; gap: 8px; flex-wrap: wrap; }
-  input[type="text"] {
+  input[type="text"], select {
     flex: 1 1 220px;
     min-width: 0;
     background: #0e1626;
@@ -56,6 +56,8 @@
     border-radius: 8px;
     font-size: 0.95rem;
   }
+  select:disabled { opacity: 0.5; }
+  #week-note { margin: 6px 0 0; min-height: 1.1em; }
   button {
     background: var(--accent);
     color: white;
@@ -119,6 +121,11 @@
   </div>
 
   <div class="panel">
+    <div class="row">
+      <select id="week-select"><option value="">Browse by match week…</option></select>
+      <select id="game-select" disabled><option value="">Select a week first</option></select>
+    </div>
+    <div id="week-note" class="meta"></div>
     <div class="row">
       <input id="video-url" type="text" placeholder="https://www.youtube.com/watch?v=..." />
       <button id="analyze-btn">Detect Key Moments</button>
@@ -256,7 +263,55 @@
     qInput.value = "";
   });
 
+  const weekSelect = document.getElementById("week-select");
+  const gameSelect = document.getElementById("game-select");
+  const weekNote = document.getElementById("week-note");
+  let weeksData = [];
+
+  async function loadMatchWeeks() {
+    try {
+      const r = await fetch("/match_weeks");
+      if (!r.ok) return;
+      const data = await r.json();
+      weeksData = data.weeks || [];
+      if (weeksData.length === 0) {
+        weekNote.textContent = "No match weeks cached yet - run scripts/refresh_playlist_cache.py.";
+        return;
+      }
+      weekNote.textContent = data.note || "";
+      weekSelect.innerHTML = '<option value="">Browse by match week…</option>' + weeksData
+        .map((w, i) => `<option value="${i}">Week ${w.week_number} (estimated, ${w.games.length} games)</option>`)
+        .join("");
+    } catch (e) {
+      // Match-week browsing is a convenience, not a requirement - the
+      // manual URL field above still works if this fails silently.
+    }
+  }
+
+  weekSelect.addEventListener("change", () => {
+    const idx = weekSelect.value;
+    if (idx === "") {
+      gameSelect.innerHTML = '<option value="">Select a week first</option>';
+      gameSelect.disabled = true;
+      return;
+    }
+    const week = weeksData[Number(idx)];
+    gameSelect.innerHTML = '<option value="">Select a game…</option>' + week.games
+      .map((g, i) => `<option value="${i}">${escapeHtml(g.home_team || "?")} v ${escapeHtml(g.away_team || "?")}</option>`)
+      .join("");
+    gameSelect.disabled = false;
+  });
+
+  gameSelect.addEventListener("change", () => {
+    const weekIdx = weekSelect.value;
+    const gameIdx = gameSelect.value;
+    if (weekIdx === "" || gameIdx === "") return;
+    const game = weeksData[Number(weekIdx)].games[Number(gameIdx)];
+    urlInput.value = game.video_url;
+  });
+
   checkHealth();
+  loadMatchWeeks();
 })();
 </script>
 </body>

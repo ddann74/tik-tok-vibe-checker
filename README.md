@@ -17,6 +17,18 @@ explicitly marked as not yet done.
 
 ## What's real right now
 
+- **Match-week browser**: `GET /match_weeks` serves a dropdown-friendly list
+  of games grouped by upload-date proximity into "estimated match weeks."
+  This is a real, working feature, but the week numbers are **not** the
+  league's official round numbers — confirmed by actually listing the real
+  YouTube playlist's video titles, which don't include round info at all,
+  only team names. Populated by `scripts/refresh_playlist_cache.py`, which
+  needs `pip install yt-dlp` and real internet access to youtube.com (this
+  sandbox blocks that, same as transcript fetching — the script is written
+  but only verified against real playlist data pasted in by hand, not run
+  end-to-end from here). With no cache generated yet, the endpoint returns
+  an empty `weeks` list rather than erroring, and the frontend degrades to
+  the plain URL input.
 - **Detection**: regex pattern matching only (`npl_engine/detection.py`).
   No AI-powered / "YouTube Vision MCP" tier — that MCP server isn't
   available in this environment, so it's not implemented, not simulated.

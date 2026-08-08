@@ -13,8 +13,9 @@ reason it isn't closed. Nothing here is aspirational prose.
 | API | `GET /`, `/health`, `POST /analyze_match`, `GET /search_key_moments` | `pytest tests/test_api.py -v` |
 | Detection | Regex only, 6 event types | `python scripts/compute_detection_metrics.py` |
 | Transcript | `youtube-transcript-api`, real, but **outbound YouTube access is blocked in this sandbox** — every run here falls back to sample data | `curl -X POST /analyze_match?url=...` and check `"source"` field |
-| Storage | In-memory. Postgres unwired (honest stub). Chroma **real** — embedding model confirmed reachable and downloaded | `pytest tests/test_storage.py -v` |
-| Frontend | Single page, verified in a real headless browser incl. no-backend and 375px states | manual: open `static/index.html` with server down |
+| Storage | Real Postgres persistence + real Chroma semantic search, both graceful when absent | `pytest tests/test_pg_storage.py tests/test_storage.py -v` |
+| Frontend | Single page, verified in a real headless browser incl. no-backend, 375px, and match-week-dropdown states | manual: open `static/index.html` with server down |
+| Match weeks | `GET /match_weeks`, dropdown-driven video selection. Real parsing/grouping logic, verified against real playlist titles - but week numbers are date-estimated, not official round numbers, and the fetch script itself is unverified end-to-end from this sandbox (same YouTube block as transcripts) | `pytest tests/test_playlist.py -v` |
 | Security | bandit clean | `bandit -r npl_engine` |
 | CI | Green on GitHub Actions for every push so far | GitHub Actions tab |
 

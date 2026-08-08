@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from . import __version__
 from .detection import KeyMoment, detect_key_moments, summarize
+from .playlist import load_cache
 from .storage import StoredMatch, backend_mode, store
 from .transcript import InvalidYouTubeURL, extract_video_id, fetch_transcript, timestamped_video_url
 
@@ -70,7 +71,7 @@ def root():
         "name": "NPL NSW Intelligence Engine",
         "version": __version__,
         "status": "running",
-        "endpoints": ["/health", "/analyze_match", "/search_key_moments"],
+        "endpoints": ["/health", "/analyze_match", "/search_key_moments", "/match_weeks"],
     }
 
 
@@ -124,6 +125,21 @@ def analyze_match(url: str = Query(..., description="YouTube match video URL")):
 def search_key_moments(q: str = Query(..., min_length=1), top_k: int = Query(10, ge=1, le=100)):
     results = store.search(q, top_k=top_k)
     return {"query": q, "count": len(results), "results": results}
+
+
+@app.get("/match_weeks")
+def match_weeks():
+    """Served from a cache built by scripts/refresh_playlist_cache.py, not
+    fetched live - see that script's docstring for why. Returns an empty
+    weeks list (not an error) if the cache hasn't been generated yet, same
+    degrade-gracefully rule as every other optional data source here."""
+    cache = load_cache()
+    return {
+        "generated_at": cache.get("generated_at"),
+        "estimated": True,
+        "note": "Week numbers are estimated from video upload-date clustering, not the league's official round numbers.",
+        "weeks": cache.get("weeks", []),
+    }
 
 
 # Mounted at /ui (not /) because GET / is a JSON API root per PRD §6.1/§5.1;
