@@ -51,9 +51,14 @@ def test_estimate_match_minute_none_before_kickoff():
     assert estimate_match_minute(50.0, 120.0) is None
 
 
-def _moment(event_type: str, start_seconds: float, description="x") -> KeyMoment:
+def _moment(event_type: str, start_seconds: float, description="x", team=None) -> KeyMoment:
     return KeyMoment(
-        timestamp="0:00", event_type=event_type, description=description, confidence=0.8, start_seconds=start_seconds
+        timestamp="0:00",
+        event_type=event_type,
+        description=description,
+        confidence=0.8,
+        start_seconds=start_seconds,
+        team=team,
     )
 
 
@@ -104,3 +109,38 @@ def test_calibrate_without_kickoff_falls_back_to_type_only_when_report_has_no_ti
     result = calibrate(moments, report, kickoff_seconds=None)
     assert len(result.matched) == 1
     assert result.matched[0]["video_estimated_minute"] is None
+
+
+def test_calibrate_skips_candidate_when_teams_disagree():
+    # Same event type, same half, would match on timing alone - but the
+    # video moment is tagged for the other team, so it must not be matched
+    # to this report event (and the report event should end up "missed").
+    kickoff = 0.0
+    moments = [_moment("goal", 10 * 60, team="Home FC")]
+    report = [MatchReportEvent(event_type="goal", minute=10, team="Away FC")]
+    result = calibrate(moments, report, kickoff)
+    assert result.matched == []
+    assert len(result.missed_in_video) == 1
+    assert len(result.unconfirmed_in_report) == 1
+
+
+def test_calibrate_matches_and_marks_team_verified_when_teams_agree():
+    kickoff = 0.0
+    moments = [_moment("goal", 10 * 60, team="Home FC")]
+    report = [MatchReportEvent(event_type="goal", minute=10, team="Home FC")]
+    result = calibrate(moments, report, kickoff)
+    assert len(result.matched) == 1
+    assert result.matched[0]["team_verified"] is True
+
+
+def test_calibrate_matches_with_team_unverified_when_team_data_missing():
+    # This is the common real-world case: KeyMoment.team is None because
+    # detection.py never guesses team from commentary. The match still
+    # happens on type + timing, but team_verified must be False so a
+    # caller doesn't mistake it for a confirmed identity match.
+    kickoff = 0.0
+    moments = [_moment("goal", 10 * 60)]  # team=None
+    report = [MatchReportEvent(event_type="goal", minute=10, team="Home FC")]
+    result = calibrate(moments, report, kickoff)
+    assert len(result.matched) == 1
+    assert result.matched[0]["team_verified"] is False

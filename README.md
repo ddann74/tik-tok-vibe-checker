@@ -29,7 +29,15 @@ explicitly marked as not yet done.
   second half per that match's real report - see `npl_engine/calibration.py`
   for the full honesty notes (kickoff detection can return "not found," a
   narrative report without minute markers only supports coarse half-level
-  matching, etc).
+  matching, etc). Matching is type + timing only, not identity: since
+  detected `KeyMoment.team` is almost always `null` (detection.py never
+  guesses team from commentary text - see below), the algorithm can't
+  usually tell a home-team goal from an away-team goal on the video side.
+  It skips a candidate when both the video and the report *do* have team
+  data and they disagree, and every `matched[]` entry carries a
+  `team_verified` flag (`true` only when both sides had team data to check
+  - `false`, the common case, means the match is type+timing only and
+  should not be read as a confirmed same-team identity match).
 
 - **Match-week browser**: `GET /match_weeks` serves a dropdown-friendly list
   of games grouped by upload-date proximity into "estimated match weeks."

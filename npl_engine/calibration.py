@@ -17,6 +17,12 @@ Two honesty constraints baked into the design:
    supports a coarse pre/post-halftime check, not minute-level
    correction - MatchReportEvent.minute is optional, and comparison logic
    must not claim precision the report didn't have.
+3. Matching is type + timing only, not identity. KeyMoment.team is almost
+   always None (detection.py deliberately never guesses team from
+   commentary), so a "match" here does not mean "confirmed same team" -
+   it means "same event type, plausible timing, and no team conflict when
+   team data happened to be available on both sides." Each matched entry
+   carries team_verified so a caller can tell which case it got.
 """
 from __future__ import annotations
 
@@ -102,6 +108,17 @@ def calibrate(
         for moment in unmatched_moments:
             if moment.event_type != report_event.event_type:
                 continue
+            # KeyMoment.team is almost always None (detection.py deliberately
+            # never guesses team from commentary), so this only filters
+            # anything on the rare case both sides have team data. It still
+            # matters: without it, a goal from the wrong team could be
+            # matched purely on type + timing proximity.
+            if (
+                moment.team is not None
+                and report_event.team is not None
+                and moment.team != report_event.team
+            ):
+                continue
             est_minute = estimate_match_minute(moment.start_seconds, kickoff_seconds)
             if report_event.minute is not None and est_minute is not None:
                 if abs(est_minute - report_event.minute) <= minute_tolerance:
@@ -134,6 +151,12 @@ def calibrate(
                     "video_estimated_minute": candidate_est_minute,
                     "corrected_to_report_minute": corrected_this_one,
                     "description": candidate.description,
+                    # True only when both sides actually had team data to
+                    # compare - the common case is team_verified=False
+                    # because detection.py never guesses team from
+                    # commentary, so this match is type+timing only and
+                    # callers must not read it as confirmed team identity.
+                    "team_verified": candidate.team is not None and report_event.team is not None,
                 }
             )
         else:
