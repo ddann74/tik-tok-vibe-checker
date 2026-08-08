@@ -78,7 +78,24 @@ _BASE_CONFIDENCE: dict[str, float] = {
 }
 
 _PROPER_NOUN_RE = re.compile(r"\b([A-Z][a-zA-Z'.-]+(?:\s+[A-Z][a-zA-Z'.-]+){0,2})\b")
-_LEADING_STOPWORDS = {"The", "A", "An", "It", "That", "This", "Goal", "Penalty"}
+# Not exhaustive - sentence-initial capitalization is inherently ambiguous
+# without real NER (a name and an ordinary verb both get capitalized at the
+# start of a sentence, e.g. "Payne fires..." vs "Deflects past..."). This
+# blocklist only catches common commentary verbs/adverbs observed to
+# misfire as "player names"; it cannot catch all of them.
+_LEADING_STOPWORDS = {
+    "The", "A", "An", "It", "That", "This", "Goal", "Penalty", "Substitution",
+    "Deflects", "Deflected", "Chooses", "Finds", "Heads", "Strikes", "Fires",
+    "Slots", "Taps", "Curls", "Blasts", "Volleys", "Nets", "Scores", "Shoots",
+    "Passes", "Crosses", "Clears", "Saves", "Tackles", "Wins", "Loses",
+    "Draws", "Plays", "Sends", "Brings", "Takes", "Gets", "Makes", "Comes",
+    "Goes", "Looks", "Now", "Here", "There", "Well", "So", "But", "And",
+    "Meanwhile", "However", "Following", "After", "Before", "During",
+    "Careless", "Reckless", "Late", "Early", "Great", "Good", "Nice",
+}
+# Contractions like "That's"/"It's" pass the [A-Z][a-zA-Z'.-]+ character
+# class since it allows apostrophes - they're not names.
+_CONTRACTION_RE = re.compile(r"'(s|re|ll|ve|d|t|m)$", re.IGNORECASE)
 
 
 @dataclass
@@ -116,7 +133,7 @@ def _guess_player(text: str) -> str | None:
     for match in _PROPER_NOUN_RE.finditer(text):
         candidate = match.group(1)
         first_word = candidate.split()[0]
-        if first_word in _LEADING_STOPWORDS:
+        if first_word in _LEADING_STOPWORDS or _CONTRACTION_RE.search(first_word):
             continue
         return candidate
     return None

@@ -175,6 +175,7 @@
           <span class="meta">confidence ${(m.confidence * 100).toFixed(0)}%</span>
           ${m.player ? `<span class="meta">player: ${escapeHtml(m.player)}</span>` : ""}
           ${m.team ? `<span class="meta">team: ${escapeHtml(m.team)}</span>` : ""}
+          ${m.match_type ? `<span class="meta">${m.match_type === "semantic" ? "semantic match" : "keyword match"} (${Number(m.score).toFixed(2)})</span>` : ""}
           <span class="desc">${escapeHtml(m.description)}</span>
         </div>`)
       .join("");
