@@ -17,6 +17,20 @@ explicitly marked as not yet done.
 
 ## What's real right now
 
+- **Match-report calibration**: `POST /calibrate?match_id=X` compares a
+  match's detected key moments against an official match report's events
+  (event type + minute or half), reporting matches/misses and any
+  timestamp correction the report's precision supports. Kickoff and
+  half-time are detected via regex over the transcript at analyze time and
+  stored as two numbers (never the transcript text itself); video
+  timestamps are converted to estimated match minutes relative to
+  kickoff. Validated against a real match: a detected penalty at video
+  timestamp 5590s calibrated to match minute 74, correctly landing in the
+  second half per that match's real report - see `npl_engine/calibration.py`
+  for the full honesty notes (kickoff detection can return "not found," a
+  narrative report without minute markers only supports coarse half-level
+  matching, etc).
+
 - **Match-week browser**: `GET /match_weeks` serves a dropdown-friendly list
   of games grouped by upload-date proximity into "estimated match weeks."
   This is a real, working feature, but the week numbers are **not** the

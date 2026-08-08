@@ -106,6 +106,54 @@ def test_match_weeks_refresh_success_populates_cache(client, tmp_path, monkeypat
     assert follow_up.json()["weeks"], "the refresh should have written a cache the next GET picks up"
 
 
+def test_calibrate_matches_report_event_and_reports_correction(client):
+    from npl_engine import server as server_module
+    from npl_engine.storage import StoredMatch, store as store_module
+
+    moments = server_module.detect_key_moments(
+        [{"start": 5590.0, "text": "and that's a penalty. Jack Fulton scores, beats the chest."}]
+    )
+    store_module.put(
+        StoredMatch(
+            match_id="calib-test", youtube_url="https://www.youtube.com/watch?v=xxxxxxxxxxx",
+            title="Test", key_moments=moments, source="sample", transcript_segments=1,
+            kickoff_seconds=1140.0, halftime_seconds=3947.0,
+        )
+    )
+    r = client.post(
+        "/calibrate",
+        params={"match_id": "calib-test"},
+        json=[{"event_type": "penalty", "minute": 75}],
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["kickoff_detected"] is True
+    assert len(body["matched"]) == 1
+    assert body["matched"][0]["video_estimated_minute"] == 74
+    assert body["missed_in_video"] == []
+
+
+def test_calibrate_404_for_unknown_match(client):
+    r = client.post("/calibrate", params={"match_id": "does-not-exist"}, json=[{"event_type": "goal"}])
+    assert r.status_code == 404
+
+
+def test_calibrate_400_for_empty_events(client):
+    from npl_engine.storage import StoredMatch, store as store_module
+
+    # Uses a match_id that actually exists, so this genuinely exercises the
+    # empty-events check rather than incidentally hitting the 404 path for
+    # an unknown match (existence is checked before body validation).
+    store_module.put(
+        StoredMatch(
+            match_id="calib-empty-test", youtube_url="https://www.youtube.com/watch?v=yyyyyyyyyyy",
+            title="Test", key_moments=[], source="sample", transcript_segments=0,
+        )
+    )
+    r = client.post("/calibrate", params={"match_id": "calib-empty-test"}, json=[])
+    assert r.status_code == 400
+
+
 def test_search_key_moments_results_include_video_url(client):
     r = client.get("/search_key_moments", params={"q": "goal"})
     body = r.json()

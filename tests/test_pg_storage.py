@@ -42,7 +42,12 @@ def test_data_survives_a_simulated_restart():
     moments = detect_key_moments(SAMPLE_TRANSCRIPT)
     try:
         store1 = MatchStore()
-        store1.put(StoredMatch(match_id, "https://example.com/x", "Test Match", moments, "sample", len(SAMPLE_TRANSCRIPT)))
+        store1.put(
+            StoredMatch(
+                match_id, "https://example.com/x", "Test Match", moments, "sample", len(SAMPLE_TRANSCRIPT),
+                kickoff_seconds=120.0, halftime_seconds=2820.0,
+            )
+        )
 
         # Fresh instance - simulates a process restart. If this only reads
         # from the first instance's in-memory dict, this would fail.
@@ -59,6 +64,11 @@ def test_data_survives_a_simulated_restart():
         # for every moment reloaded after a restart.
         assert recovered.key_moments[0].start_seconds == moments[0].start_seconds
         assert recovered.key_moments[0].start_seconds > 0
+        # kickoff_seconds/halftime_seconds (used by /calibrate) must
+        # round-trip too, or calibration would silently break for any
+        # match reloaded after a restart.
+        assert recovered.kickoff_seconds == 120.0
+        assert recovered.halftime_seconds == 2820.0
     finally:
         _cleanup(match_id)
 

@@ -42,6 +42,12 @@ class StoredMatch:
     key_moments: list[KeyMoment]
     source: str
     transcript_segments: int
+    # Computed once from the transcript at analyze time (see
+    # npl_engine.calibration) and stored as plain numbers - never the
+    # transcript text itself, which is copyrighted broadcast commentary
+    # and isn't persisted anywhere in this app.
+    kickoff_seconds: float | None = None
+    halftime_seconds: float | None = None
 
 
 def _moment_document(moment: KeyMoment) -> str:

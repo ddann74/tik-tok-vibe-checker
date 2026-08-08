@@ -16,6 +16,7 @@ reason it isn't closed. Nothing here is aspirational prose.
 | Storage | Real Postgres persistence + real Chroma semantic search, both graceful when absent | `pytest tests/test_pg_storage.py tests/test_storage.py -v` |
 | Frontend | Single page, verified in a real headless browser incl. no-backend, 375px, and match-week-dropdown states | manual: open `static/index.html` with server down |
 | Match weeks | `GET /match_weeks`, dropdown-driven video selection. Real parsing/grouping logic, verified against real playlist titles - but week numbers are date-estimated, not official round numbers, and the fetch script itself is unverified end-to-end from this sandbox (same YouTube block as transcripts) | `pytest tests/test_playlist.py -v` |
+| Calibration | `POST /calibrate`: compares detected key moments to an official match report's events, converts video timestamps to estimated match minutes via detected kickoff/halftime. Kickoff-detection regex validated against a real transcript (penalty at video ts 5590s -> match minute 74, correctly second-half per the real report); comparison/matching logic tested with synthetic fixtures | `pytest tests/test_calibration.py -v` |
 | Security | bandit clean | `bandit -r npl_engine` |
 | CI | Green on GitHub Actions for every push so far | GitHub Actions tab |
 

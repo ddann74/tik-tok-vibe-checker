@@ -21,8 +21,12 @@ CREATE TABLE IF NOT EXISTS matches (
     youtube_url TEXT NOT NULL,
     title TEXT NOT NULL,
     source TEXT NOT NULL,
-    transcript_segments INTEGER NOT NULL
+    transcript_segments INTEGER NOT NULL,
+    kickoff_seconds REAL,
+    halftime_seconds REAL
 );
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS kickoff_seconds REAL;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS halftime_seconds REAL;
 CREATE TABLE IF NOT EXISTS key_moments (
     id SERIAL PRIMARY KEY,
     match_id TEXT NOT NULL REFERENCES matches(match_id) ON DELETE CASCADE,
@@ -66,15 +70,21 @@ def upsert_match(conn, match) -> None:
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO matches (match_id, youtube_url, title, source, transcript_segments)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO matches
+                (match_id, youtube_url, title, source, transcript_segments, kickoff_seconds, halftime_seconds)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (match_id) DO UPDATE SET
                 youtube_url = EXCLUDED.youtube_url,
                 title = EXCLUDED.title,
                 source = EXCLUDED.source,
-                transcript_segments = EXCLUDED.transcript_segments
+                transcript_segments = EXCLUDED.transcript_segments,
+                kickoff_seconds = EXCLUDED.kickoff_seconds,
+                halftime_seconds = EXCLUDED.halftime_seconds
             """,
-            (match.match_id, match.youtube_url, match.title, match.source, match.transcript_segments),
+            (
+                match.match_id, match.youtube_url, match.title, match.source, match.transcript_segments,
+                match.kickoff_seconds, match.halftime_seconds,
+            ),
         )
         cur.execute("DELETE FROM key_moments WHERE match_id = %s", (match.match_id,))
         for idx, m in enumerate(match.key_moments):
@@ -96,9 +106,12 @@ def load_all_matches(conn) -> list:
 
     matches = []
     with conn.cursor() as cur:
-        cur.execute("SELECT match_id, youtube_url, title, source, transcript_segments FROM matches")
+        cur.execute(
+            "SELECT match_id, youtube_url, title, source, transcript_segments, kickoff_seconds, halftime_seconds "
+            "FROM matches"
+        )
         rows = cur.fetchall()
-    for match_id, youtube_url, title, source, transcript_segments in rows:
+    for match_id, youtube_url, title, source, transcript_segments, kickoff_seconds, halftime_seconds in rows:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT timestamp, event_type, description, confidence, player, team, start_seconds "
@@ -113,5 +126,10 @@ def load_all_matches(conn) -> list:
             )
             for ts, et, desc, conf, player, team, start_seconds in moment_rows
         ]
-        matches.append(StoredMatch(match_id, youtube_url, title, moments, source, transcript_segments))
+        matches.append(
+            StoredMatch(
+                match_id, youtube_url, title, moments, source, transcript_segments,
+                kickoff_seconds=kickoff_seconds, halftime_seconds=halftime_seconds,
+            )
+        )
     return matches

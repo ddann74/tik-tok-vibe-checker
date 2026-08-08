@@ -8,12 +8,13 @@ import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import __version__
+from .calibration import MatchReportEvent, calibrate, detect_halftime_seconds, detect_kickoff_seconds
 from .detection import KeyMoment, detect_key_moments, summarize
 from .playlist import DEFAULT_PLAYLIST_URL, fetch_playlist_entries, group_into_match_weeks, load_cache, save_cache
 from .storage import StoredMatch, backend_mode, store
@@ -71,7 +72,7 @@ def root():
         "name": "NPL NSW Intelligence Engine",
         "version": __version__,
         "status": "running",
-        "endpoints": ["/health", "/analyze_match", "/search_key_moments", "/match_weeks"],
+        "endpoints": ["/health", "/analyze_match", "/search_key_moments", "/match_weeks", "/calibrate"],
     }
 
 
@@ -95,6 +96,11 @@ def analyze_match(url: str = Query(..., description="YouTube match video URL")):
     key_moments = detect_key_moments(segments)
     match_id = hashlib.sha1(video_id.encode(), usedforsecurity=False).hexdigest()[:8]
     title = f"NPL NSW Match {match_id}"
+    # Computed once from the transcript here, then only the two numbers are
+    # kept - the transcript text itself is never persisted (see
+    # StoredMatch's kickoff_seconds/halftime_seconds docstring).
+    kickoff_seconds = detect_kickoff_seconds(segments)
+    halftime_seconds = detect_halftime_seconds(segments)
 
     store.put(
         StoredMatch(
@@ -104,6 +110,8 @@ def analyze_match(url: str = Query(..., description="YouTube match video URL")):
             key_moments=key_moments,
             source=source,
             transcript_segments=len(segments),
+            kickoff_seconds=kickoff_seconds,
+            halftime_seconds=halftime_seconds,
         )
     )
 
@@ -118,6 +126,8 @@ def analyze_match(url: str = Query(..., description="YouTube match video URL")):
         "transcript_segments": len(segments),
         "source": source,
         "storage_backend": backend_mode(),
+        "kickoff_seconds": kickoff_seconds,
+        "halftime_seconds": halftime_seconds,
     }
 
 
@@ -168,6 +178,50 @@ def refresh_match_weeks(playlist_url: str = Query(DEFAULT_PLAYLIST_URL)):
         "entries_fetched": len(entries),
         "weeks": len(weeks),
         "games": sum(len(w.games) for w in weeks),
+    }
+
+
+class ReportEventIn(BaseModel):
+    event_type: str
+    minute: int | None = None
+    half: int | None = None
+    player: str | None = None
+    team: str | None = None
+
+
+@app.post("/calibrate")
+def calibrate_match(match_id: str = Query(...), events: list[ReportEventIn] = Body(...)):
+    """Compares a previously-analyzed match's detected key moments against
+    an official match report's events, and reports what matched, what the
+    report has that the video-derived detection doesn't, and vice versa.
+
+    Read-only: does not mutate the stored match's timestamps. matched[]
+    entries include corrected_to_report_minute + the report's minute for a
+    caller to act on if they choose to.
+    """
+    match = store.get(match_id)
+    if match is None:
+        raise HTTPException(status_code=404, detail=f"No stored match with id '{match_id}'")
+    if not events:
+        raise HTTPException(status_code=400, detail="events must be a non-empty list")
+
+    report_events = [
+        MatchReportEvent(event_type=e.event_type, minute=e.minute, half=e.half, player=e.player, team=e.team)
+        for e in events
+    ]
+    result = calibrate(match.key_moments, report_events, match.kickoff_seconds)
+    return {
+        "match_id": match_id,
+        "kickoff_seconds": match.kickoff_seconds,
+        "halftime_seconds": match.halftime_seconds,
+        "kickoff_detected": match.kickoff_seconds is not None,
+        "matched": result.matched,
+        "missed_in_video": [e.__dict__ for e in result.missed_in_video],
+        "unconfirmed_in_report": [
+            {"event_type": m.event_type, "timestamp": m.timestamp, "description": m.description}
+            for m in result.unconfirmed_in_report
+        ],
+        "corrected_timestamps": result.corrected_timestamps,
     }
 
 
