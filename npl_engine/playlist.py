@@ -140,7 +140,15 @@ def fetch_playlist_entries(playlist_url: str = DEFAULT_PLAYLIST_URL) -> list[dic
         # several minutes for ~200 videos) - that tradeoff is accepted
         # here because this is a manual/occasional refresh, not a
         # per-request fetch.
-        with yt_dlp.YoutubeDL({"quiet": True, "skip_download": True}) as ydl:
+        # ignoreerrors=True: confirmed live that some individual videos in
+        # a real ~200-video playlist fail extraction (private/deleted/
+        # region-locked/etc.) - without this, yt-dlp aborts the WHOLE
+        # playlist on the first bad video, and this function's broad
+        # except below would then discard every entry already fetched,
+        # not just the failed one. With it, bad entries are skipped and
+        # everything else is kept (confirmed: 217 flat entries -> 100
+        # survived full extraction with ignoreerrors=True on real data).
+        with yt_dlp.YoutubeDL({"quiet": True, "skip_download": True, "ignoreerrors": True}) as ydl:
             info = ydl.extract_info(playlist_url, download=False)
     except Exception:
         return []
