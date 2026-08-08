@@ -41,7 +41,24 @@ def test_root_returns_200(client):
     assert r.status_code == 200
 
 
-def test_analyze_match_key_moments_link_to_the_right_timestamp(client):
+def test_analyze_match_key_moments_link_to_the_right_timestamp(client, monkeypatch):
+    # Force the sample-fallback transcript deterministically, rather than
+    # relying on this arbitrary video ID actually lacking football content.
+    # A real fetch depends on network access this test can't assume: this
+    # sandbox blocks outbound YouTube entirely, but a CI runner with real
+    # internet fetched this video's actual (non-football) captions, found
+    # zero key moments, and correctly failed the "at least one moment"
+    # assertion below - that was this test's bug, not the app's.
+    from npl_engine import server as server_module
+    from npl_engine import transcript as transcript_module
+
+    # server.py does `from .transcript import fetch_transcript`, binding its
+    # own module-level name - patching transcript_module.fetch_transcript
+    # would not affect server.py's already-resolved reference, so this
+    # patches the name actually called inside analyze_match().
+    monkeypatch.setattr(
+        server_module, "fetch_transcript", lambda video_id: (transcript_module.SAMPLE_TRANSCRIPT, "sample_fallback")
+    )
     r = client.post("/analyze_match", params={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"})
     body = r.json()
     assert body["key_moments"], "expected at least one key moment for this to be a meaningful test"
