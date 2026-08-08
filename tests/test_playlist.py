@@ -98,3 +98,98 @@ def test_fetch_playlist_entries_degrades_to_empty_list_without_yt_dlp(monkeypatc
     from npl_engine.playlist import fetch_playlist_entries
 
     assert fetch_playlist_entries("https://www.youtube.com/playlist?list=whatever") == []
+
+
+def test_entries_from_cache_flattens_weeks_back_into_entries():
+    from npl_engine.playlist import _entries_from_cache
+
+    cache = {
+        "weeks": [
+            {
+                "week_number": 1,
+                "games": [
+                    {"title": REAL_TITLES[0], "video_url": "https://www.youtube.com/watch?v=aaaaaaaaaaa", "upload_date": "2026-05-01"},
+                    {"title": REAL_TITLES[1], "video_url": "https://www.youtube.com/watch?v=bbbbbbbbbbb", "upload_date": "2026-05-02"},
+                ],
+            }
+        ]
+    }
+    entries = _entries_from_cache(cache)
+    assert entries == [
+        {"title": REAL_TITLES[0], "url": "https://www.youtube.com/watch?v=aaaaaaaaaaa", "upload_date": "2026-05-01"},
+        {"title": REAL_TITLES[1], "url": "https://www.youtube.com/watch?v=bbbbbbbbbbb", "upload_date": "2026-05-02"},
+    ]
+
+
+def test_entries_from_cache_empty_when_no_weeks():
+    from npl_engine.playlist import _entries_from_cache
+
+    assert _entries_from_cache({"weeks": []}) == []
+    assert _entries_from_cache({}) == []
+
+
+def test_fetch_playlist_entries_incremental_only_fetches_dates_for_new_videos(monkeypatch):
+    import npl_engine.playlist as playlist_module
+
+    known_url = "https://www.youtube.com/watch?v=aaaaaaaaaaa"
+    new_url = "https://www.youtube.com/watch?v=zzzzzzzzzzz"
+
+    existing_cache = {
+        "weeks": [
+            {
+                "week_number": 1,
+                "games": [{"title": REAL_TITLES[0], "video_url": known_url, "upload_date": "2026-05-01"}],
+            }
+        ]
+    }
+
+    monkeypatch.setattr(
+        playlist_module,
+        "fetch_playlist_flat",
+        lambda playlist_url: [
+            {"video_id": "aaaaaaaaaaa", "title": REAL_TITLES[0], "url": known_url},
+            {"video_id": "zzzzzzzzzzz", "title": REAL_TITLES[1], "url": new_url},
+        ],
+    )
+
+    fetch_video_dates_calls = []
+
+    def fake_fetch_video_dates(urls):
+        fetch_video_dates_calls.append(list(urls))
+        return {new_url: "2026-06-01"}
+
+    monkeypatch.setattr(playlist_module, "fetch_video_dates", fake_fetch_video_dates)
+
+    entries = playlist_module.fetch_playlist_entries_incremental("whatever", existing_cache=existing_cache)
+
+    # Only the new video's URL should have been sent for date-fetching -
+    # the known one keeps its cached date without a redundant slow fetch.
+    assert fetch_video_dates_calls == [[new_url]]
+    entries_by_url = {e["url"]: e for e in entries}
+    assert entries_by_url[known_url]["upload_date"] == "2026-05-01"
+    assert entries_by_url[new_url]["upload_date"] == "2026-06-01"
+    assert len(entries) == 2
+
+
+def test_fetch_playlist_entries_incremental_empty_cache_fetches_everything(monkeypatch):
+    import npl_engine.playlist as playlist_module
+
+    url = "https://www.youtube.com/watch?v=aaaaaaaaaaa"
+    monkeypatch.setattr(
+        playlist_module,
+        "fetch_playlist_flat",
+        lambda playlist_url: [{"video_id": "aaaaaaaaaaa", "title": REAL_TITLES[0], "url": url}],
+    )
+    monkeypatch.setattr(playlist_module, "fetch_video_dates", lambda urls: {url: "2026-05-01"})
+
+    entries = playlist_module.fetch_playlist_entries_incremental("whatever", existing_cache={"weeks": []})
+    assert len(entries) == 1
+    assert entries[0]["upload_date"] == "2026-05-01"
+
+
+def test_fetch_playlist_entries_incremental_returns_empty_when_flat_listing_fails(monkeypatch):
+    import npl_engine.playlist as playlist_module
+
+    monkeypatch.setattr(playlist_module, "fetch_playlist_flat", lambda playlist_url: [])
+    entries = playlist_module.fetch_playlist_entries_incremental("whatever", existing_cache={"weeks": []})
+    assert entries == []

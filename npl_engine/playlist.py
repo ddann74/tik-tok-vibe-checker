@@ -174,6 +174,110 @@ def fetch_playlist_entries(playlist_url: str = DEFAULT_PLAYLIST_URL) -> list[dic
     return entries
 
 
+def fetch_playlist_flat(playlist_url: str = DEFAULT_PLAYLIST_URL) -> list[dict]:
+    """Fast listing: title/url/video_id only, no upload_date - this is the
+    extract_flat call that previously caused the dateless-entries bug when
+    used for the full fetch. Kept deliberately separate and used only to
+    discover *which* videos exist, not to populate cache data directly.
+    Returns [] (never raises) on any failure, same degrade-gracefully rule
+    as fetch_playlist_entries."""
+    try:
+        import yt_dlp
+    except ImportError:
+        return []
+    try:
+        with yt_dlp.YoutubeDL({"quiet": True, "extract_flat": "in_playlist", "skip_download": True}) as ydl:
+            info = ydl.extract_info(playlist_url, download=False)
+    except Exception:
+        return []
+
+    entries = []
+    for raw in info.get("entries") or []:
+        if not raw:
+            continue
+        video_id = raw.get("id")
+        if not video_id:
+            continue
+        entries.append(
+            {
+                "video_id": video_id,
+                "title": raw.get("title", ""),
+                "url": raw.get("url") or f"https://www.youtube.com/watch?v={video_id}",
+            }
+        )
+    return entries
+
+
+def fetch_video_dates(video_urls: list[str]) -> dict[str, str | None]:
+    """Full per-video extraction, but ONLY for the URLs given - this is
+    the slow path from fetch_playlist_entries(), narrowed to just the
+    videos the caller actually needs dates for (new ones not already
+    cached), rather than the whole playlist every time. Each video is
+    fetched independently so one failure doesn't drop the others -
+    returns {} entries as None rather than omitting them, so callers can
+    tell "fetched, no date available" apart from "never attempted"."""
+    try:
+        import yt_dlp
+    except ImportError:
+        return {url: None for url in video_urls}
+
+    dates: dict[str, str | None] = {}
+    for url in video_urls:
+        try:
+            with yt_dlp.YoutubeDL({"quiet": True, "skip_download": True}) as ydl:
+                info = ydl.extract_info(url, download=False)
+            upload_date_raw = (info or {}).get("upload_date")
+            if upload_date_raw and len(upload_date_raw) == 8:
+                dates[url] = f"{upload_date_raw[:4]}-{upload_date_raw[4:6]}-{upload_date_raw[6:8]}"
+            else:
+                dates[url] = None
+        except Exception:
+            dates[url] = None
+    return dates
+
+
+def _entries_from_cache(cache: dict) -> list[dict]:
+    """Flattens a loaded cache's weeks back into the {"title", "url",
+    "upload_date"} entry shape group_into_match_weeks() expects, so an
+    incremental refresh can recombine existing + newly-fetched entries and
+    regroup everything (week boundaries can shift as new games are added,
+    so weeks aren't simply appended to)."""
+    entries = []
+    for week in cache.get("weeks", []):
+        for game in week.get("games", []):
+            entries.append({"title": game["title"], "url": game["video_url"], "upload_date": game.get("upload_date")})
+    return entries
+
+
+def fetch_playlist_entries_incremental(
+    playlist_url: str = DEFAULT_PLAYLIST_URL, existing_cache: dict | None = None
+) -> list[dict]:
+    """Only fetches (slow) upload dates for videos not already in the
+    cache - existing games keep their already-known date without being
+    re-fetched. Falls back to the full fetch_playlist_entries() if the
+    fast flat listing fails outright (e.g. this being the very first run,
+    with no cache to diff against, still works via the caller passing
+    existing_cache={"weeks": []} or None).
+    """
+    existing_cache = existing_cache if existing_cache is not None else load_cache()
+    existing_entries = _entries_from_cache(existing_cache)
+    known_urls = {e["url"] for e in existing_entries}
+
+    flat = fetch_playlist_flat(playlist_url)
+    if not flat:
+        return []
+
+    new_urls = [e["url"] for e in flat if e["url"] not in known_urls]
+    new_dates = fetch_video_dates(new_urls) if new_urls else {}
+
+    flat_by_url = {e["url"]: e for e in flat}
+    new_entries = [
+        {"title": flat_by_url[url]["title"], "url": url, "upload_date": new_dates.get(url)} for url in new_urls
+    ]
+
+    return existing_entries + new_entries
+
+
 def cache_path() -> Path:
     configured = os.environ.get("PLAYLIST_CACHE_PATH")
     if configured:

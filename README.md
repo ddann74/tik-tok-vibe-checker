@@ -42,7 +42,11 @@ explicitly marked as not yet done.
   but only verified against real playlist data pasted in by hand, not run
   end-to-end from here). With no cache generated yet, the endpoint returns
   an empty `weeks` list rather than erroring, and the frontend degrades to
-  the plain URL input.
+  the plain URL input. **Refreshing is incremental by default**: games
+  already in the cache keep their known date without being re-fetched
+  (the slow part - one page load per video); only new games get the full
+  fetch. `python scripts/refresh_playlist_cache.py --full` forces a
+  complete re-fetch from scratch if ever needed.
 - **Detection**: regex pattern matching only (`npl_engine/detection.py`).
   No AI-powered / "YouTube Vision MCP" tier — that MCP server isn't
   available in this environment, so it's not implemented, not simulated.

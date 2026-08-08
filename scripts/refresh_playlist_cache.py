@@ -8,8 +8,15 @@ outbound YouTube access. Run it on a machine with normal internet, then
 either commit data/playlist_cache.json or point PLAYLIST_CACHE_PATH at
 wherever you keep it.
 
+By default this is INCREMENTAL: games already in the cache keep their
+known date without being re-fetched, and only new games get the slow
+per-video fetch. Pass --full to force re-fetching every video's date from
+scratch (e.g. if you suspect the cache is corrupted, or a date needs
+correcting).
+
 Usage:
     python scripts/refresh_playlist_cache.py
+    python scripts/refresh_playlist_cache.py --full
     python scripts/refresh_playlist_cache.py --playlist-url <url>
 """
 from __future__ import annotations
@@ -17,15 +24,30 @@ from __future__ import annotations
 import argparse
 import sys
 
-from npl_engine.playlist import DEFAULT_PLAYLIST_URL, fetch_playlist_entries, group_into_match_weeks, save_cache
+from npl_engine.playlist import (
+    DEFAULT_PLAYLIST_URL,
+    fetch_playlist_entries,
+    fetch_playlist_entries_incremental,
+    group_into_match_weeks,
+    load_cache,
+    save_cache,
+)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--playlist-url", default=DEFAULT_PLAYLIST_URL)
+    parser.add_argument("--full", action="store_true", help="Re-fetch every video's date, not just new ones.")
     args = parser.parse_args()
 
-    entries = fetch_playlist_entries(args.playlist_url)
+    if args.full:
+        entries = fetch_playlist_entries(args.playlist_url)
+    else:
+        existing = load_cache()
+        already_known = sum(len(w.get("games", [])) for w in existing.get("weeks", []))
+        entries = fetch_playlist_entries_incremental(args.playlist_url, existing_cache=existing)
+        print(f"Incremental refresh: {already_known} games already cached, checking for new ones only.")
+
     if not entries:
         print(
             "Fetched 0 entries. Either yt-dlp isn't installed (pip install yt-dlp), "

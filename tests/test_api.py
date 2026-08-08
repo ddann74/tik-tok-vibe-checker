@@ -78,8 +78,9 @@ def test_match_weeks_refresh_returns_502_when_fetch_is_empty(client, monkeypatch
     from npl_engine import server as server_module
 
     # Simulates no yt-dlp / no internet / bad playlist URL - same failure
-    # mode fetch_playlist_entries() returns for all of those, by design.
-    monkeypatch.setattr(server_module, "fetch_playlist_entries", lambda playlist_url: [])
+    # mode fetch_playlist_entries_incremental() returns for all of those,
+    # by design.
+    monkeypatch.setattr(server_module, "fetch_playlist_entries_incremental", lambda playlist_url, existing_cache: [])
     r = client.post("/match_weeks/refresh")
     assert r.status_code == 502
     assert r.json()["detail"]
@@ -91,8 +92,8 @@ def test_match_weeks_refresh_success_populates_cache(client, tmp_path, monkeypat
     monkeypatch.setenv("PLAYLIST_CACHE_PATH", str(tmp_path / "cache.json"))
     monkeypatch.setattr(
         server_module,
-        "fetch_playlist_entries",
-        lambda playlist_url: [
+        "fetch_playlist_entries_incremental",
+        lambda playlist_url, existing_cache: [
             {"title": "NPL Men's NSW - A FC v B FC", "url": "https://www.youtube.com/watch?v=aaaaaaaaaaa", "upload_date": "2026-05-01"},
         ],
     )

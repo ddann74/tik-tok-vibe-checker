@@ -314,7 +314,7 @@
   document.getElementById("refresh-weeks-btn").addEventListener("click", async () => {
     const btn = document.getElementById("refresh-weeks-btn");
     btn.disabled = true;
-    weekNote.textContent = "Refreshing from YouTube… this can take a minute for a large playlist.";
+    weekNote.textContent = "Refreshing from YouTube… games already cached are skipped, only new ones are fetched.";
     try {
       const r = await fetch("/match_weeks/refresh", { method: "POST" });
       const data = await r.json().catch(() => ({}));

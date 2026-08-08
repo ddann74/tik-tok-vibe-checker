@@ -16,7 +16,13 @@ from pydantic import BaseModel
 from . import __version__
 from .calibration import MatchReportEvent, calibrate, detect_halftime_seconds, detect_kickoff_seconds
 from .detection import KeyMoment, detect_key_moments, summarize
-from .playlist import DEFAULT_PLAYLIST_URL, fetch_playlist_entries, group_into_match_weeks, load_cache, save_cache
+from .playlist import (
+    DEFAULT_PLAYLIST_URL,
+    fetch_playlist_entries_incremental,
+    group_into_match_weeks,
+    load_cache,
+    save_cache,
+)
 from .storage import StoredMatch, backend_mode, store
 from .transcript import InvalidYouTubeURL, extract_video_id, fetch_transcript, timestamped_video_url
 
@@ -158,11 +164,16 @@ def refresh_match_weeks(playlist_url: str = Query(DEFAULT_PLAYLIST_URL)):
     triggered from the browser instead of the terminal - so refreshing
     just needs the server itself to have real internet + yt-dlp installed
     (true on a normal machine; not true in the sandbox this was built in).
-    Returns 502 if the fetch came back empty - no yt-dlp, no network, bad
-    playlist URL - rather than silently leaving a stale/empty cache and
-    claiming success.
+
+    Incremental: games already cached keep their known date without being
+    re-fetched (slow, one page load per video) - only new games get the
+    full fetch. Returns 502 if even the fast listing came back empty - no
+    yt-dlp, no network, bad playlist URL - rather than silently leaving a
+    stale/empty cache and claiming success.
     """
-    entries = fetch_playlist_entries(playlist_url)
+    existing_cache = load_cache()
+    already_known = sum(len(w.get("games", [])) for w in existing_cache.get("weeks", []))
+    entries = fetch_playlist_entries_incremental(playlist_url, existing_cache=existing_cache)
     if not entries:
         raise HTTPException(
             status_code=502,
@@ -176,6 +187,8 @@ def refresh_match_weeks(playlist_url: str = Query(DEFAULT_PLAYLIST_URL)):
     return {
         "status": "success",
         "entries_fetched": len(entries),
+        "already_cached": already_known,
+        "newly_fetched": max(0, len(entries) - already_known),
         "weeks": len(weeks),
         "games": sum(len(w.games) for w in weeks),
     }
