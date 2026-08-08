@@ -42,22 +42,37 @@ engine line-by-line. This found and fixed:
   too generic a trigger to add without risking false positives on ordinary
   deflected shots.
 
-Current real-match tally across all four matches: goals 8/11, yellow cards
-18/18, substitutions 13/17, red card 1/1, own goal 1/1 (recap only, live
-call missed). **Zero real-match exercise for penalty** — none of the four
-validated matches had one (two had a hand-ball shout that correctly did
-NOT trigger a false positive, since no penalty was actually awarded either
-time). Penalty is now the only event type with no real-world exercise at
-all - the last item in this gap.
+A fifth real match (UNSW FC vs Wollongong Wolves, also not checked in here)
+had a real penalty awarded and converted - closing the last event type with
+zero real-world exercise. Found and fixed:
+
+- The live penalty award itself ("...went over and that's a penalty") was
+  missed - only a later recap phrase ("broken from the spot") was caught.
+  Added "that's a penalty" / "it's a penalty" (mirroring the existing goal
+  pattern) and "12 yards" / "12-yard" (standard penalty-spot terminology).
+- Deliberately NOT fixed: a bare-noun recap ("it was the [player] penalty
+  that did it") was also missed, and adding bare "penalty" as a trigger
+  would fix that - but it would also flip a real true-negative from the
+  4th match ("that almost resulted in a penalty", correctly unflagged
+  since no penalty was actually given) into a false positive. Precision
+  was chosen over recall here; documented rather than silently traded off.
+- Substitution: "have both come off" (base verb form) was missed - only
+  "comes off"/"coming off" were covered. Added bare "come off"/"come on".
+
+Current real-match tally across all five matches: goals 9/13, yellow cards
+20/20, substitutions 15/19, red card 1/1, penalty 3/4 (the bare-noun recap
+above is the one deliberate miss), own goal 1/1 (recap only, live call
+missed). **Every event type has now been exercised against real
+commentary, not just self-authored fixtures.**
 
 ## 3. Open items, ranked, with why they're open
 
-1. ~~**Penalty/red-card real-match validation**~~ **Red card CLOSED** (4th
-   match, caught cleanly, no pattern change needed). **Penalty still open**
-   — blocked on getting a transcript with an actual penalty awarded (not
-   just a shout that was waved away, which two of the four matches already
-   had and correctly did not false-positive). Not blocked on anything
-   technical.
+1. ~~**Penalty/red-card real-match validation**~~ **CLOSED.** Red card (4th
+   match) and penalty (5th match) both now have real-match exercise. Not
+   "solved" - goal/substitution/own-goal recall are still below 100% on
+   real data, and that's expected to continue as more matches surface new
+   phrasing. But the "zero real-world exercise" gap that mattered most is
+   gone. Further validation is welcome but no longer blocking.
 2. **Live YouTube fetch, end-to-end** — blocked on this sandbox's egress
    policy (confirmed via live 403 at the proxy, not assumed). Needs running
    `npl_engine/transcript.py` somewhere with real internet.

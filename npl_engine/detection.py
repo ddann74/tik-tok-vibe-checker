@@ -54,11 +54,15 @@ PATTERNS: dict[str, list[re.Pattern]] = {
             r"(?i)\b(substitution|replaces|comes on for|comes in for|makes way for|(?:is )?replaced by"
             r"|brought on for|replace (?:him|her|them)"
             r"|(?:enters?|entered|come|comes) (?:into )?the (?:fray|frag|freight|game) for"
-            r"|coming on|coming off|set to come on|comes off|comes on)\b"
+            r"|coming on|coming off|set to come on|comes off|comes on|come off|come on)\b"
         ),
     ],
     "penalty": [
-        re.compile(r"(?i)\b(penalty awarded|penalty kick|spot kick|from the spot|converts the penalty|steps up to take (?:the|a) penalty)\b"),
+        re.compile(
+            r"(?i)\b(penalty awarded|penalty kick|spot kick|from the spot|converts the penalty"
+            r"|steps up to take (?:the|a) penalty|that'?s a penalty|it'?s a penalty"
+            r"|12[\s-]yards?)\b"
+        ),
     ],
     "own_goal": [
         re.compile(

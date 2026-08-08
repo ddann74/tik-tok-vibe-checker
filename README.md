@@ -158,10 +158,30 @@ goal/substitution gaps:
   a genuine, if narrow, validation that the conservative penalty pattern
   behaves correctly on real "almost but not quite" commentary.
 
-Running tally across all four validated matches: goals 8/11, yellow cards
-18/18, substitutions 13/17, red card 1/1, own goal 1/1 (recap only).
-**Penalty is now the only event type with zero real-match exercise** -
-none of the four matches validated so far had one actually awarded.
+A fifth real match (UNSW FC vs Wollongong Wolves, also not checked in
+here) had a real penalty awarded and converted, closing the last event
+type with zero real-world exercise:
+
+- The live penalty award ("...went over and that's a penalty") was
+  missed - only a later recap phrase ("broken from the spot") was caught.
+  Added "that's a penalty" / "it's a penalty" and "12 yards" / "12-yard"
+  (standard penalty-spot terminology).
+- Deliberately NOT fixed: a bare-noun recap ("it was the [player] penalty
+  that did it") was also missed. Adding bare "penalty" as a trigger would
+  fix that, but it would also flip a real true-negative from the 4th
+  match ("that almost resulted in a penalty", correctly unflagged) into a
+  false positive. Chose precision over recall here rather than silently
+  trading one for the other.
+- Substitution: "have both come off" (base verb form, as opposed to
+  "comes off"/"coming off") was missed. Added bare "come off"/"come on".
+
+Running tally across all five validated matches: goals 9/13, yellow cards
+20/20, substitutions 15/19, red card 1/1, penalty 3/4, own goal 1/1
+(recap only). **Every event type has now been exercised against real
+commentary, not just self-authored fixtures** - the gap that mattered
+most (§9's success metrics being measured only against patterns' own
+authors) is closed, even though recall on several event types is still
+short of the checked-in fixtures' inflated 1.00.
 
 ## API
 
