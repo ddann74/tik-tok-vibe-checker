@@ -20,25 +20,35 @@ reason it isn't closed. Nothing here is aspirational prose.
 
 ## 2. Validated against real data (not just self-authored fixtures)
 
-Two real NPL NSW match transcripts (user-supplied, not checked into this
+Three real NPL NSW match transcripts (user-supplied, not checked into this
 repo — copyrighted broadcast commentary) were run through the detection
 engine line-by-line. This found and fixed:
 
 - A false positive (bare "score" matching the goal pattern on phrases like
   "the final score").
-- A recall miss (a real goal call phrased "opening goal... puts them in
-  front" matched no existing trigger).
-- Two substitution-phrasing gaps ("comes in for", "entered the fray for").
+- Recall misses on goal calls: "opening goal... puts them in front" and
+  bare "...and it's a goal" both matched no existing trigger.
+- Substitution-phrasing gaps: "comes in for", "entered the fray for", and
+  (the biggest one) "[player] coming off... [player] on" / "set to come on
+  in place of [player]" - the third match had 0/5 substitutions caught
+  before this was added.
+- An own goal was caught, but only via a half-time recap sentence that
+  literally said "own goal" - the live call used generic deflection
+  language and was missed. Left unfixed: "a deflection off a player" is
+  too generic a trigger to add without risking false positives on ordinary
+  deflected shots.
 
-Current real-match tally across both matches: goals 3/3, yellow cards 9/9,
-substitutions 5/8. **Zero real-match exercise for penalty, red card, or own
-goal** — neither validated match had one. This is the single largest gap
-between "tests pass" and "works in general."
+Current real-match tally across all three matches: goals 5/6, yellow cards
+10/10, substitutions 10/13, own goal 1/1 (recap only, live call missed).
+**Zero real-match exercise for penalty or red card** — none of the three
+validated matches had either. That's the largest remaining gap between
+"tests pass" and "works in general."
 
 ## 3. Open items, ranked, with why they're open
 
-1. **Penalty/red-card/own-goal real-match validation** — blocked on getting
-   a transcript with one of these events. Not blocked on anything technical.
+1. **Penalty/red-card real-match validation** — own-goal is now partially
+   closed (see §2), but blocked on getting a transcript with a penalty or
+   red card. Not blocked on anything technical.
 2. **Live YouTube fetch, end-to-end** — blocked on this sandbox's egress
    policy (confirmed via live 403 at the proxy, not assumed). Needs running
    `npl_engine/transcript.py` somewhere with real internet.

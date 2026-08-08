@@ -38,6 +38,7 @@ PATTERNS: dict[str, list[re.Pattern]] = {
         ),
         re.compile(r"(?i)\b(equaliser|equalizer|leveller)\b"),
         re.compile(r"(?i)\b(opening|equalising|equalizing|winning|late|second|third|fourth) goal\b"),
+        re.compile(r"(?i)\b(it'?s a goal|that'?s a goal)\b"),
     ],
     "yellow_card": [
         re.compile(
@@ -52,7 +53,8 @@ PATTERNS: dict[str, list[re.Pattern]] = {
         re.compile(
             r"(?i)\b(substitution|replaces|comes on for|comes in for|makes way for|is replaced by"
             r"|brought on for|replace (?:him|her|them)"
-            r"|(?:enters?|entered|come|comes) (?:into )?the (?:fray|frag|freight|game) for)\b"
+            r"|(?:enters?|entered|come|comes) (?:into )?the (?:fray|frag|freight|game) for"
+            r"|coming on|coming off|set to come on)\b"
         ),
     ],
     "penalty": [

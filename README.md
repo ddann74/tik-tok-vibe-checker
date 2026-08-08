@@ -109,6 +109,32 @@ yellow cards 4/4, substitutions 2/4. No penalty, red card, or own goal
 occurred in this match either — those three event types have still never
 been checked against real commentary, only self-authored fixtures.
 
+A third real match (Wollongong Wolves vs Rockdale Illawarra, also not
+checked in here) had an own goal and a yellow card - the first real
+exercise of the own-goal pattern - plus more goal/substitution phrasing
+gaps:
+
+- Own goal: caught, but only via a half-time recap sentence that
+  literally said "own goal" - the live call ("the deflection off [player]
+  who needed to make the intervention...") used none of the existing
+  triggers and was missed. Not fixed - "a deflection off a player" is too
+  generic a phrase to safely trigger on without risking false positives on
+  ordinary deflected shots that aren't own goals.
+- Goal: a bare "...and it's a goal" call was missed (only qualified goals
+  like "opening goal" were covered). Added a pattern for "it's a goal" /
+  "that's a goal".
+- Substitution: 0/5 caught. Real commentary phrases substitutions as
+  "[player] coming off... [player] on", "set to come on in place of
+  [player]", "[player] coming off, [player]" - none of which matched
+  "comes on for" style patterns. Added "coming on" / "coming off" / "set
+  to come on" as triggers.
+- Yellow card: 1/1 caught, no changes needed.
+- Red card, penalty: still zero real-match exercise - this match had
+  neither (a hand-ball shout drew no penalty, correctly not flagged).
+
+Re-run after the fix: substitutions 5/5 (was 0/5), goals 2/3 (was 1/3 -
+the recap-only own-goal miss stands, undecided whether to chase it).
+
 ## API
 
 | Endpoint | Method | Notes |
