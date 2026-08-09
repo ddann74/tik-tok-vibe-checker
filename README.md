@@ -54,7 +54,18 @@ explicitly marked as not yet done.
   already in the cache keep their known date without being re-fetched
   (the slow part - one page load per video); only new games get the full
   fetch. `python scripts/refresh_playlist_cache.py --full` forces a
-  complete re-fetch from scratch if ever needed.
+  complete re-fetch from scratch if ever needed. Each game also carries a
+  **match report link** - deliberately a Google search
+  (`{home} {away} NPL NSW match report {year}`), not a direct link to the
+  article. NPL NSW publishes match reports as round-review blog posts
+  covering several games at once, with a trailing numeric slug that isn't
+  predictable from team names or date (confirmed against real published
+  URLs - there's no "-1" for round 1, "-2" for round 2 pattern to
+  exploit), and this app has no server-side web-search capability to look
+  up the real article URL at request time. A guessed direct link would
+  just be a coin-flip 404; a search link always resolves and gets you
+  there in one click. See `build_match_report_search_url()` in
+  `npl_engine/playlist.py`.
 - **Detection**: regex pattern matching only (`npl_engine/detection.py`).
   No AI-powered / "YouTube Vision MCP" tier — that MCP server isn't
   available in this environment, so it's not implemented, not simulated.

@@ -25,6 +25,7 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.parse import quote_plus
 
 DEFAULT_PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLxa2AB3-xOrvP2TRh6y2ZkoT1CZhZlI9_"
 
@@ -44,6 +45,7 @@ class PlaylistGame:
     home_team: str | None
     away_team: str | None
     upload_date: str | None  # ISO date string (YYYY-MM-DD), or None if unknown
+    match_report_search_url: str  # see build_match_report_search_url() - a search link, not a guessed article URL
 
 
 @dataclass
@@ -61,6 +63,36 @@ def parse_teams_from_title(title: str) -> tuple[str | None, str | None]:
     if not match:
         return None, None
     return match.group(1).strip(), match.group(2).strip()
+
+
+def build_match_report_search_url(
+    home_team: str | None, away_team: str | None, upload_date: str | None = None
+) -> str:
+    """A Google search URL for this game's match report - deliberately NOT
+    a direct link to the report article itself.
+
+    NPL Men's NSW publishes match reports as round-review blog posts
+    (e.g. mens.nplnsw.com.au/2026/04/26/round-12-review-npl-mens-nsw-3/)
+    covering several games at once, with a trailing numeric suffix that
+    isn't predictable from the team names or date (confirmed by checking
+    real published URLs - there is no "-1" for round 1, "-2" for round 2,
+    etc. pattern to exploit). Football NSW's own results/match-centre
+    system (competitions.footballnsw.com.au) assigns each match an opaque
+    ID with no public lookup by team name either. So there is no way to
+    construct the exact report URL for a given game without a live search
+    - which this app can't perform server-side (no web-search capability
+    here, unlike the assistant that built this feature). A search link is
+    the honest alternative: it always resolves to a real results page and
+    gets a human most of the way there in one click, instead of a guessed
+    article URL that might 404.
+    """
+    if home_team and away_team:
+        query = f"{home_team} {away_team} NPL NSW match report"
+    else:
+        query = "NPL NSW match report"
+    if upload_date:
+        query += f" {upload_date[:4]}"
+    return f"https://www.google.com/search?q={quote_plus(query)}"
 
 
 def group_into_match_weeks(entries: list[dict]) -> list[MatchWeek]:
@@ -100,13 +132,15 @@ def group_into_match_weeks(entries: list[dict]) -> list[MatchWeek]:
         games = []
         for entry in week_entries:
             home, away = parse_teams_from_title(entry["title"])
+            upload_date = entry.get("upload_date")
             games.append(
                 PlaylistGame(
                     title=entry["title"],
                     video_url=entry["url"],
                     home_team=home,
                     away_team=away,
-                    upload_date=entry.get("upload_date"),
+                    upload_date=upload_date,
+                    match_report_search_url=build_match_report_search_url(home, away, upload_date),
                 )
             )
         result.append(MatchWeek(week_number=i, estimated=True, games=games))

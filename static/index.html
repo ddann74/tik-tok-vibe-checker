@@ -58,6 +58,9 @@
   }
   select:disabled { opacity: 0.5; }
   #week-note { margin: 6px 0 0; min-height: 1.1em; }
+  #report-link-row { margin-top: 4px; }
+  #report-link { color: var(--accent); font-size: 0.85rem; text-decoration: none; }
+  #report-link:hover { text-decoration: underline; }
   button {
     background: var(--accent);
     color: white;
@@ -127,6 +130,9 @@
       <button id="refresh-weeks-btn" class="secondary">Refresh Match Weeks</button>
     </div>
     <div id="week-note" class="meta"></div>
+    <div id="report-link-row" class="row" style="display:none">
+      <a id="report-link" target="_blank" rel="noopener noreferrer">🔎 Search for this game's match report</a>
+    </div>
     <div class="row">
       <input id="video-url" type="text" placeholder="https://www.youtube.com/watch?v=..." />
       <button id="analyze-btn">Detect Key Moments</button>
@@ -294,6 +300,7 @@
     if (idx === "") {
       gameSelect.innerHTML = '<option value="">Select a week first</option>';
       gameSelect.disabled = true;
+      document.getElementById("report-link-row").style.display = "none";
       return;
     }
     const week = weeksData[Number(idx)];
@@ -303,12 +310,24 @@
     gameSelect.disabled = false;
   });
 
+  const reportLinkRow = document.getElementById("report-link-row");
+  const reportLink = document.getElementById("report-link");
+
   gameSelect.addEventListener("change", () => {
     const weekIdx = weekSelect.value;
     const gameIdx = gameSelect.value;
-    if (weekIdx === "" || gameIdx === "") return;
+    if (weekIdx === "" || gameIdx === "") {
+      reportLinkRow.style.display = "none";
+      return;
+    }
     const game = weeksData[Number(weekIdx)].games[Number(gameIdx)];
     urlInput.value = game.video_url;
+    if (game.match_report_search_url) {
+      reportLink.href = game.match_report_search_url;
+      reportLinkRow.style.display = "";
+    } else {
+      reportLinkRow.style.display = "none";
+    }
   });
 
   document.getElementById("refresh-weeks-btn").addEventListener("click", async () => {

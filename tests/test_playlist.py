@@ -6,7 +6,7 @@ pulled from the actual NPL Men's NSW YouTube playlist via yt-dlp, so the
 parsing regex is verified against real data rather than titles I made up
 to fit my own pattern.
 """
-from npl_engine.playlist import group_into_match_weeks, parse_teams_from_title
+from npl_engine.playlist import build_match_report_search_url, group_into_match_weeks, parse_teams_from_title
 
 # Real titles from https://www.youtube.com/playlist?list=PLxa2AB3-xOrvP2TRh6y2ZkoT1CZhZlI9_
 REAL_TITLES = [
@@ -68,6 +68,29 @@ def test_group_into_match_weeks_clusters_by_date_gap():
     assert weeks[1].week_number == 2
     # games carry through their parsed team names
     assert weeks[0].games[0].home_team == "St George City FA"
+    # and a working match-report search link, per-game
+    assert weeks[0].games[0].match_report_search_url.startswith("https://www.google.com/search?q=")
+    assert "St+George+City+FA" in weeks[0].games[0].match_report_search_url
+
+
+def test_build_match_report_search_url_is_a_real_search_link_not_a_guessed_article():
+    # NPL NSW match reports are round-review blog posts with unpredictable
+    # slug suffixes (confirmed by checking real published URLs) - there is
+    # no way to construct the exact article URL from team names/date, so
+    # this must be a search link (always resolves), never a fabricated
+    # direct link that might 404.
+    url = build_match_report_search_url("St George City FA", "Rockdale Ilinden FC", "2026-05-01")
+    assert url.startswith("https://www.google.com/search?q=")
+    assert "St+George+City+FA" in url
+    assert "Rockdale+Ilinden+FC" in url
+    assert "NPL+NSW" in url
+    assert "2026" in url
+
+
+def test_build_match_report_search_url_falls_back_without_team_names():
+    url = build_match_report_search_url(None, None, None)
+    assert url.startswith("https://www.google.com/search?q=")
+    assert "NPL+NSW+match+report" in url
 
 
 def test_group_into_match_weeks_drops_undated_entries_rather_than_guessing():
