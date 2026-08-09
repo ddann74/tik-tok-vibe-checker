@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NPL NSW Intelligence Engine</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --panel: #131c2e;
+    --border: #24304a;
+    --text: #e7edf7;
+    --muted: #93a1bd;
+    --accent: #4f8cff;
+    --danger: #ef4444;
+    --ok: #22c55e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.4rem; margin: 8px 0 4px; }
+  p.subtitle { color: var(--muted); margin: 0 0 16px; font-size: 0.9rem; }
+
+  #server-banner {
+    display: none;
+    background: #3a1414;
+    border: 1px solid var(--danger);
+    color: #fecaca;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    font-size: 0.9rem;
+  }
+  #server-banner.visible { display: block; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  input[type="text"], select {
+    flex: 1 1 220px;
+    min-width: 0;
+    background: #0e1626;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+  }
+  select:disabled { opacity: 0.5; }
+  #week-note { margin: 6px 0 0; min-height: 1.1em; }
+  #report-link-row { margin-top: 4px; }
+  #report-link { color: var(--accent); font-size: 0.85rem; text-decoration: none; }
+  #report-link:hover { text-decoration: underline; }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button.secondary { background: #2a3652; }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  #summary { color: var(--muted); font-size: 0.9rem; margin: 10px 0 0; min-height: 1.2em; }
+
+  .moment {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    align-items: baseline;
+    word-break: break-word;
+  }
+  .moment .ts { color: var(--accent); font-weight: 600; min-width: 3.5em; text-decoration: none; }
+  .moment a.ts:hover { text-decoration: underline; }
+  .badge {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #21304d;
+    color: var(--muted);
+  }
+  .badge.goal, .badge.own_goal, .badge.penalty { background: #14351f; color: #86efac; }
+  .badge.yellow_card { background: #3a3312; color: #fde047; }
+  .badge.red_card { background: #3a1414; color: #fca5a5; }
+  .badge.substitution { background: #12233a; color: #93c5fd; }
+  .moment .desc { flex-basis: 100%; color: var(--text); font-size: 0.92rem; }
+  .moment .meta { color: var(--muted); font-size: 0.8rem; }
+
+  #results { min-height: 40px; }
+  .empty-state { color: var(--muted); font-size: 0.9rem; padding: 12px 0; }
+
+  @media (max-width: 480px) {
+    .row { flex-direction: column; }
+    button { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⚽ NPL NSW Intelligence Engine</h1>
+  <p class="subtitle">Detect and search key moments (goals, cards, subs, penalties) in NPL NSW match broadcasts.</p>
+
+  <div id="server-banner">
+    Server not running — start the backend with <code>uvicorn npl_engine.server:app --reload</code> and reload this page.
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <select id="week-select"><option value="">Browse by match week…</option></select>
+      <select id="game-select" disabled><option value="">Select a week first</option></select>
+      <button id="refresh-weeks-btn" class="secondary">Refresh Match Weeks</button>
+    </div>
+    <div id="week-note" class="meta"></div>
+    <div id="report-link-row" class="row" style="display:none">
+      <a id="report-link" target="_blank" rel="noopener noreferrer">🔎 Search for this game's match report</a>
+    </div>
+    <div class="row">
+      <input id="video-url" type="text" placeholder="https://www.youtube.com/watch?v=..." />
+      <button id="analyze-btn">Detect Key Moments</button>
+    </div>
+    <div id="summary"></div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <input id="search-q" type="text" placeholder="Search key moments (e.g. goal, red card)" />
+      <button id="search-btn">Search Moments</button>
+      <button id="sample-btn" class="secondary">Load Sample</button>
+      <button id="clear-btn" class="secondary">Clear</button>
+    </div>
+  </div>
+
+  <div id="results"><div class="empty-state">No results yet. Try "Load Sample" or enter a YouTube URL above.</div></div>
+</div>
+
+<script>
+(function () {
+  const banner = document.getElementById("server-banner");
+  const results = document.getElementById("results");
+  const summary = document.getElementById("summary");
+  const urlInput = document.getElementById("video-url");
+  const qInput = document.getElementById("search-q");
+
+  const SAMPLE_VIDEO_ID = "sample00001";
+  const SAMPLE_MOMENTS = [
+    { timestamp: "12:34", start_seconds: 754, event_type: "goal", description: "Payne fires it into the bottom corner!", confidence: 0.82, player: "J. Payne", team: null },
+    { timestamp: "21:30", start_seconds: 1290, event_type: "yellow_card", description: "That's a yellow card shown for the late challenge.", confidence: 0.7, player: null, team: null },
+    { timestamp: "31:15", start_seconds: 1875, event_type: "penalty", description: "Penalty awarded after the trip inside the box.", confidence: 0.75, player: null, team: null },
+    { timestamp: "40:30", start_seconds: 2430, event_type: "substitution", description: "Substitution for APIA, Nguyen comes on for the tiring Payne.", confidence: 0.7, player: "Nguyen", team: null },
+    { timestamp: "47:45", start_seconds: 2865, event_type: "red_card", description: "Careless challenge there, and that's a straight red card, he's sent off!", confidence: 0.8, player: null, team: null },
+    { timestamp: "55:20", start_seconds: 3320, event_type: "own_goal", description: "Deflects past his own keeper, an unfortunate own goal.", confidence: 0.65, player: null, team: null },
+  ].map((m) => ({ ...m, video_url: `https://www.youtube.com/watch?v=${SAMPLE_VIDEO_ID}&t=${m.start_seconds}s` }));
+
+  function setBanner(show) {
+    banner.classList.toggle("visible", show);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function renderMoments(moments) {
+    if (!moments || moments.length === 0) {
+      results.innerHTML = '<div class="empty-state">No key moments found.</div>';
+      return;
+    }
+    results.innerHTML = moments
+      .map((m) => `
+        <div class="moment">
+          ${m.video_url
+            ? `<a class="ts" href="${escapeHtml(m.video_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(m.timestamp)}</a>`
+            : `<span class="ts">${escapeHtml(m.timestamp)}</span>`}
+          <span class="badge ${escapeHtml(m.event_type)}">${escapeHtml(m.event_type.replace("_", " "))}</span>
+          <span class="meta">confidence ${(m.confidence * 100).toFixed(0)}%</span>
+          ${m.player ? `<span class="meta">player: ${escapeHtml(m.player)}</span>` : ""}
+          ${m.team ? `<span class="meta">team: ${escapeHtml(m.team)}</span>` : ""}
+          ${m.match_type ? `<span class="meta">${m.match_type === "semantic" ? "semantic match" : "keyword match"} (${Number(m.score).toFixed(2)})</span>` : ""}
+          <span class="desc">${escapeHtml(m.description)}</span>
+        </div>`)
+      .join("");
+  }
+
+  async function checkHealth() {
+    try {
+      const r = await fetch("/health");
+      setBanner(!r.ok);
+      return r.ok;
+    } catch (e) {
+      setBanner(true);
+      return false;
+    }
+  }
+
+  document.getElementById("analyze-btn").addEventListener("click", async () => {
+    const url = urlInput.value.trim();
+    if (!url) {
+      summary.textContent = "Please enter a YouTube video URL.";
+      return;
+    }
+    summary.textContent = "Analyzing…";
+    try {
+      const r = await fetch("/analyze_match?url=" + encodeURIComponent(url), { method: "POST" });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        summary.textContent = "Error: " + (body.detail || r.statusText);
+        return;
+      }
+      const data = await r.json();
+      summary.textContent = data.summary + (data.source === "sample_fallback" ? " (sample fallback — live transcript unavailable)" : "");
+      renderMoments(data.key_moments);
+      setBanner(false);
+    } catch (e) {
+      setBanner(true);
+      summary.textContent = "";
+    }
+  });
+
+  document.getElementById("search-btn").addEventListener("click", async () => {
+    const q = qInput.value.trim();
+    if (!q) return;
+    try {
+      const r = await fetch("/search_key_moments?q=" + encodeURIComponent(q));
+      if (!r.ok) return;
+      const data = await r.json();
+      summary.textContent = `${data.count} result(s) for "${q}"`;
+      renderMoments(data.results);
+      setBanner(false);
+    } catch (e) {
+      setBanner(true);
+    }
+  });
+
+  qInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") document.getElementById("search-btn").click();
+  });
+  urlInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") document.getElementById("analyze-btn").click();
+  });
+
+  // Load Sample is intentionally a pure client-side action: no network call,
+  // so it works (and can't crash) even if the backend proxy is down.
+  document.getElementById("sample-btn").addEventListener("click", () => {
+    summary.textContent = "4 goals | 2 cards | 1 substitutions | 6 total moments (sample data)";
+    renderMoments(SAMPLE_MOMENTS);
+  });
+
+  document.getElementById("clear-btn").addEventListener("click", () => {
+    summary.textContent = "";
+    results.innerHTML = '<div class="empty-state">No results yet. Try "Load Sample" or enter a YouTube URL above.</div>';
+    urlInput.value = "";
+    qInput.value = "";
+  });
+
+  const weekSelect = document.getElementById("week-select");
+  const gameSelect = document.getElementById("game-select");
+  const weekNote = document.getElementById("week-note");
+  let weeksData = [];
+
+  async function loadMatchWeeks() {
+    try {
+      const r = await fetch("/match_weeks");
+      if (!r.ok) return;
+      const data = await r.json();
+      weeksData = data.weeks || [];
+      if (weeksData.length === 0) {
+        weekNote.textContent = 'No match weeks cached yet - click "Refresh Match Weeks" (needs this server to have internet access).';
+        return;
+      }
+      weekNote.textContent = data.note || "";
+      weekSelect.innerHTML = '<option value="">Browse by match week…</option>' + weeksData
+        .map((w, i) => `<option value="${i}">Week ${w.week_number} (estimated, ${w.games.length} games)</option>`)
+        .join("");
+    } catch (e) {
+      // Match-week browsing is a convenience, not a requirement - the
+      // manual URL field above still works if this fails silently.
+    }
+  }
+
+  weekSelect.addEventListener("change", () => {
+    const idx = weekSelect.value;
+    if (idx === "") {
+      gameSelect.innerHTML = '<option value="">Select a week first</option>';
+      gameSelect.disabled = true;
+      document.getElementById("report-link-row").style.display = "none";
+      return;
+    }
+    const week = weeksData[Number(idx)];
+    gameSelect.innerHTML = '<option value="">Select a game…</option>' + week.games
+      .map((g, i) => `<option value="${i}">${escapeHtml(g.home_team || "?")} v ${escapeHtml(g.away_team || "?")}</option>`)
+      .join("");
+    gameSelect.disabled = false;
+  });
+
+  const reportLinkRow = document.getElementById("report-link-row");
+  const reportLink = document.getElementById("report-link");
+
+  gameSelect.addEventListener("change", () => {
+    const weekIdx = weekSelect.value;
+    const gameIdx = gameSelect.value;
+    if (weekIdx === "" || gameIdx === "") {
+      reportLinkRow.style.display = "none";
+      return;
+    }
+    const game = weeksData[Number(weekIdx)].games[Number(gameIdx)];
+    urlInput.value = game.video_url;
+    if (game.match_report_search_url) {
+      reportLink.href = game.match_report_search_url;
+      reportLinkRow.style.display = "";
+    } else {
+      reportLinkRow.style.display = "none";
+    }
+  });
+
+  document.getElementById("refresh-weeks-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("refresh-weeks-btn");
+    btn.disabled = true;
+    weekNote.textContent = "Refreshing from YouTube… games already cached are skipped, only new ones are fetched.";
+    try {
+      const r = await fetch("/match_weeks/refresh", { method: "POST" });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        weekNote.textContent = "Refresh failed: " + (data.detail || r.statusText);
+      } else {
+        weekNote.textContent = `Refreshed: ${data.games} games across ${data.weeks} estimated weeks.`;
+        await loadMatchWeeks();
+      }
+    } catch (e) {
+      weekNote.textContent = "Refresh failed: could not reach the server.";
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  checkHealth();
+  loadMatchWeeks();
+})();
+</script>
+</body>
+</html>

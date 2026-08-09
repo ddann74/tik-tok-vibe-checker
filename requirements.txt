@@ -1,4 +1,9 @@
-streamlit
-pandas
-apify-client
-google-generativeai
+fastapi
+uvicorn[standard]
+pydantic
+youtube-transcript-api
+httpx
+pytest
+chromadb
+psycopg[binary]
+yt-dlp
